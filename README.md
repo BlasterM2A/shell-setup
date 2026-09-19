@@ -8,6 +8,7 @@ A personal shell bootstrap tool for Ubuntu/Debian. It installs and wires up:
 - [fzf](https://github.com/junegunn/fzf) fuzzy finder
 - [zoxide](https://github.com/ajeetdsouza/zoxide) smarter `cd`
 - [mise](https://mise.jdx.dev/) runtime version manager
+- AI CLIs: [Claude Code](https://claude.ai/), [GitHub Copilot CLI](https://github.com/github/copilot-cli), [Junie](https://junie.jetbrains.com/), [Antigravity CLI](https://antigravity.google/product/antigravity-cli/) (`agy`)
 - JetBrainsMono Nerd Font
 
 ## Usage on a new machine

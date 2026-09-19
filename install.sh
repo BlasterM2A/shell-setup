@@ -112,6 +112,25 @@ install_mise() {
     mise settings set auto_update true
 }
 
+# Third-party AI CLIs ship their own curl|bash installers. A failed download
+# here warns instead of aborting so it can't break the shell bootstrap.
+install_ai_cli() {
+    local name="$1" bin="$2" url="$3"
+    if is_installed "$bin"; then
+        log_info "$name already installed, skipping"
+        return 0
+    fi
+    log_info "Installing $name..."
+    if ! curl -fsSL "$url" | bash; then
+        log_warn "Failed to install $name, continuing"
+    fi
+}
+
+install_claude() { install_ai_cli "Claude Code" claude https://claude.ai/install.sh; }
+install_copilot_cli() { install_ai_cli "GitHub Copilot CLI" copilot https://gh.io/copilot-install; }
+install_junie() { install_ai_cli "Junie" junie https://junie.jetbrains.com/install.sh; }
+install_antigravity() { install_ai_cli "Antigravity CLI" agy https://antigravity.google/cli/install.sh; }
+
 install_nerd_font() {
     if fc-list 2>/dev/null | grep -i "JetBrainsMono Nerd Font" >/dev/null; then
         log_info "JetBrainsMono Nerd Font already installed, skipping"
@@ -141,6 +160,10 @@ install_all_packages() {
     install_unzip
     install_fontconfig
     install_nerd_font
+    install_claude
+    install_copilot_cli
+    install_junie
+    install_antigravity
 }
 
 # --- orchestration ---

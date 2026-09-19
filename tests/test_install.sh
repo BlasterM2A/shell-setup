@@ -183,6 +183,64 @@ else
     echo "PASS: install_mise skips installation when mise is already present"
 fi
 
+# --- AI CLI installers: idempotency, install, and failure tolerance ---
+
+AI_MARKER="$TMPDIR/ai-curl-called"
+AI_EMPTY_BIN="$TMPDIR/ai-empty-bin"
+mkdir -p "$AI_EMPTY_BIN"
+# Minimal PATH (fake curl + coreutils dirs only) so real installs on this host don't leak in.
+AI_SAFE_PATH="$AI_EMPTY_BIN:/usr/bin:/bin"
+for tool in "claude claude" "copilot copilot" "junie junie" "antigravity agy"; do
+    fn="install_${tool%% *}"
+    [ "$fn" = "install_copilot" ] && fn="install_copilot_cli"
+    bin="${tool##* }"
+
+    # Already installed -> curl must not run.
+    rm -f "$AI_MARKER"
+    cat > "$AI_EMPTY_BIN/$bin" <<'EOS'
+#!/usr/bin/env bash
+EOS
+    chmod +x "$AI_EMPTY_BIN/$bin"
+    cat > "$AI_EMPTY_BIN/curl" <<EOS
+#!/usr/bin/env bash
+touch "$AI_MARKER"
+EOS
+    chmod +x "$AI_EMPTY_BIN/curl"
+    PATH="$AI_SAFE_PATH" "$fn" >/dev/null
+    if [ -f "$AI_MARKER" ]; then
+        echo "FAIL: $fn invoked curl when $bin was already installed"
+        FAILURES=$((FAILURES + 1))
+    else
+        echo "PASS: $fn skips installation when $bin is already present"
+    fi
+
+    # Missing -> curl runs the installer script piped into bash.
+    rm -f "$AI_MARKER" "$AI_EMPTY_BIN/$bin"
+    cat > "$AI_EMPTY_BIN/curl" <<EOS
+#!/usr/bin/env bash
+echo 'touch "$AI_MARKER"'
+EOS
+    PATH="$AI_SAFE_PATH" "$fn" >/dev/null
+    if [ -f "$AI_MARKER" ]; then
+        echo "PASS: $fn runs the installer when $bin is missing"
+    else
+        echo "FAIL: $fn did not run the installer when $bin was missing"
+        FAILURES=$((FAILURES + 1))
+    fi
+
+    # Failing download must warn, not abort the whole bootstrap.
+    cat > "$AI_EMPTY_BIN/curl" <<'EOS'
+#!/usr/bin/env bash
+exit 22
+EOS
+    if (set -euo pipefail; PATH="$AI_SAFE_PATH" "$fn" >/dev/null 2>&1); then
+        echo "PASS: $fn tolerates a failed download under set -e"
+    else
+        echo "FAIL: $fn aborted on a failed download"
+        FAILURES=$((FAILURES + 1))
+    fi
+done
+
 if [ "$FAILURES" -eq 0 ]; then
     echo "All tests passed."
     exit 0
