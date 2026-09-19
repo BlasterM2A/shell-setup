@@ -39,7 +39,10 @@ set_default_shell() {
         return 0
     fi
     log_info "Changing default shell to zsh..."
-    chsh -s "$zsh_path"
+    if ! chsh -s "$zsh_path" 2>/dev/null; then
+        log_warn "chsh failed (no password set for PAM auth is common on SSH-key-only accounts), retrying with sudo..."
+        sudo chsh -s "$zsh_path" "$(whoami)"
+    fi
 }
 
 print_summary() {
