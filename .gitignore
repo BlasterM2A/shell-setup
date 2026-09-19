@@ -1,1 +1,16 @@
 .superpowers/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Editor/IDE
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Local backups created by symlink_dotfile (never expected inside the repo,
+# but ignored defensively in case install.sh is ever run from here)
+*.bak.*

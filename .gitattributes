@@ -1,0 +1,13 @@
+# Normalize line endings to LF for everything by default.
+* text=auto eol=lf
+
+# Shell scripts must always be LF — a CRLF shebang line breaks execution.
+*.sh text eol=lf
+zshrc text eol=lf
+plugins.txt text eol=lf
+
+# Config files are text too.
+*.toml text eol=lf
+*.md text eol=lf
+
+# Nothing binary is expected in this repo; no diff/merge overrides needed.
