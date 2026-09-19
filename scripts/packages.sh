@@ -55,10 +55,11 @@ install_antidote() {
 install_mise() {
     if is_installed mise; then
         log_info "mise already installed, skipping"
-        return 0
+    else
+        log_info "Installing mise..."
+        curl -fsSL https://mise.run | sh
     fi
-    log_info "Installing mise..."
-    curl -fsSL https://mise.run | sh
+    mise settings set auto_update true
 }
 
 install_nerd_font() {
