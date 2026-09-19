@@ -10,29 +10,19 @@ A personal shell bootstrap tool for Ubuntu/Debian. It installs and wires up:
 - [mise](https://mise.jdx.dev/) runtime version manager
 - JetBrainsMono Nerd Font
 
-## Important: clone location
-
-This repo **must be cloned to exactly `~/shell-setup`**. `zsh/zshrc` loads
-antidote plugins with a hardcoded path
-(`antidote load "$HOME/shell-setup/zsh/plugins.txt"`), so anything other than
-`~/shell-setup` will break plugin loading.
-
 ## Usage on a new machine
 
-One-liner (clones the repo to `~/shell-setup` if it's not there yet, then
-runs `install.sh`):
+One command, no `git clone` required:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BlasterM2A/shell-setup/master/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/BlasterM2A/shell-setup/master/install.sh | bash
 ```
 
-Or manually:
-
-```bash
-git clone https://github.com/BlasterM2A/shell-setup.git ~/shell-setup
-cd ~/shell-setup
-./install.sh
-```
+`install.sh` is fully self-contained: it installs every tool above, then
+downloads the three dotfiles it manages (`.zshrc`, `starship.toml`, the
+antidote plugin list) directly from this repo and writes them into place.
+Nothing is cloned or left behind on disk beyond those files and the tools
+themselves.
 
 During the run, expect two password prompts:
 
@@ -49,13 +39,25 @@ During the run, expect two password prompts:
 
 ## Updating
 
-Edit files in this repo, then:
+Edit `zsh/zshrc`, `starship/starship.toml`, or `zsh/plugins.txt` in this
+repo, commit, and push. On each device, updating is the same one-liner as
+installing:
 
 ```bash
-git push
+curl -fsSL https://raw.githubusercontent.com/BlasterM2A/shell-setup/master/install.sh | bash
 ```
 
-On other machines, `git pull`. Since `~/.zshrc` and the starship config are
-symlinked into this repo, most changes (aliases, prompt config, plugin list)
-take effect immediately in new shells. Re-run `./install.sh` only if you
-added a new package to install.
+It re-downloads the latest dotfiles (skipping any that are already
+up to date) and re-runs the idempotent package installers, so it's always
+safe to re-run.
+
+## Development
+
+`install.sh` is the single source of truth for install logic — there's no
+separate `scripts/lib.sh`/`scripts/packages.sh` to keep in sync. Tests live
+in `tests/test_install.sh` and source `install.sh` directly (sourcing is
+guarded so it never runs `main`). Run them with:
+
+```bash
+bash tests/test_install.sh
+```

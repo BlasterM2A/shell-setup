@@ -20,8 +20,15 @@ que el setup arranca minimalista.
 - **Alcance del tool:** dotfiles core (`.zshrc`, `starship.toml`) +
   instalación automática de paquetes. No incluye (por ahora) otros dotfiles
   (`.gitconfig`, `.tmux.conf`), ni config de Claude Code.
-- **Distribución:** repo público en GitHub (BlasterM2A/shell-setup) + script `install.sh` custom
-  (sin Stow ni chezmoi). Symlinks del repo hacia `$HOME`.
+- **Distribución:** repo público en GitHub (BlasterM2A/shell-setup) + un único
+  `install.sh` autocontenible, sin `git clone` en el dispositivo destino. El
+  script instala las herramientas de terceros y descarga los 3 dotfiles
+  propios (`zshrc`, `starship.toml`, `plugins.txt`) directo vía
+  `raw.githubusercontent.com`, escribiéndolos en su lugar (no symlinks, no
+  repo clonado). *(Decisión revisada — originalmente se diseñó con
+  `git clone` + symlinks; se simplificó tras notar que `install.sh` solo
+  instala herramientas de terceros y gestiona 3 archivos chicos, sin
+  necesidad real de un repo persistente en el dispositivo.)*
 - **Migración de `.bashrc`:** ninguna — se arranca limpio, solo se replican
   los 3 aliases (`ll`, `la`, `l`) en el nuevo `.zshrc`.
 - **Nerd Font:** se instala JetBrainsMono Nerd Font automáticamente; la
@@ -31,8 +38,9 @@ que el setup arranca minimalista.
 - **Shell por defecto:** el script cambia el shell a zsh automáticamente
   (`chsh -s`) si no lo es ya.
 - **Idempotencia:** el script se puede correr N veces sin romper nada;
-  dotfiles existentes que no sean ya symlinks al repo se respaldan con
-  timestamp antes de reemplazarlos.
+  dotfiles existentes con contenido distinto al descargado se respaldan con
+  timestamp antes de sobreescribirlos (si el contenido es idéntico, no se
+  toca nada).
 - **Testing:** fuera de alcance por ahora. Sin validación en contenedor ni
   shellcheck en esta primera versión.
 - **mise:** se instala y se activa en `.zshrc` (`eval "$(mise activate zsh)"`)
@@ -42,37 +50,38 @@ que el setup arranca minimalista.
 
 ## Arquitectura
 
-Repo público en GitHub (`shell-setup`) con dotfiles versionados
-dentro del repo (no directamente en `$HOME`), más un script `install.sh`
-idempotente que:
+Repo público en GitHub (`shell-setup`) donde vive el código fuente de los 3
+dotfiles y de `install.sh`. **Ningún dispositivo destino clona el repo.**
+`install.sh` es autocontenible (una sola función `fetch_dotfile` reemplaza
+symlinks) y, al correr:
 
 1. Instala los paquetes faltantes.
-2. Symlinkea los dotfiles del repo hacia `$HOME` (con backup si hace falta).
+2. Descarga los 3 dotfiles propios directo desde
+   `raw.githubusercontent.com` y los escribe en `$HOME` (con backup si el
+   contenido cambió respecto al existente).
 3. Cambia el shell por defecto a zsh.
 
-**Flujo en máquina nueva:**
+**Flujo en máquina nueva (y de actualización — es el mismo comando):**
 ```
-git clone git@github.com:<user>/shell-setup ~/shell-setup
-cd ~/shell-setup
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/BlasterM2A/shell-setup/master/install.sh | bash
 ```
 
-**Flujo de actualización:** editar en el repo → `git push`; en otra máquina
-→ `git pull`. Los symlinks reflejan el cambio al instante; no hace falta
-re-correr `install.sh` salvo que cambien paquetes o el plugin manager.
+Re-correr el mismo comando en cualquier momento trae los cambios más
+recientes de los dotfiles y vuelve a aplicar los instaladores (todos
+idempotentes) — no hace falta `git pull` porque no hay ningún repo local.
 
 ## Estructura del repo
 
 ```
 shell-setup/
-├── install.sh                 # script bootstrap idempotente
+├── install.sh                 # único script: helpers + instaladores + orquestación
 ├── zsh/
-│   ├── zshrc                  # -> ~/.zshrc
-│   └── plugins.txt            # lista de plugins para antidote
+│   ├── zshrc                  # fuente; install.sh la descarga a ~/.zshrc
+│   └── plugins.txt            # fuente; install.sh la descarga a ~/.config/shell-setup/plugins.txt
 ├── starship/
-│   └── starship.toml          # -> ~/.config/starship.toml
-└── scripts/
-    └── lib.sh                 # helpers: log, backup_if_exists, symlink, is_installed
+│   └── starship.toml          # fuente; install.sh la descarga a ~/.config/starship.toml
+└── tests/
+    └── test_install.sh        # sourcea install.sh (con guard), stubs de curl/apt-get/git/mise
 ```
 
 ## Componentes
@@ -114,16 +123,18 @@ Ejecutado con `set -euo pipefail`, idempotente en cada paso:
 
 1. Detectar SO (Ubuntu/Debian-based); abortar con mensaje claro si no lo es.
 2. Instalar paquetes faltantes (chequeo previo vía `command -v`).
-3. Symlinkear dotfiles: por cada archivo, si el destino existe y no es ya
-   symlink al repo → respaldar a `<archivo>.bak.<timestamp>`, luego
-   symlinkear.
-4. Configurar antidote con los plugins listados en `zsh/plugins.txt`.
-5. `chsh -s "$(which zsh)"` si el shell de login actual no es ya zsh.
-6. Imprimir resumen final: qué se instaló, qué ya estaba, qué se respaldó, y
-   confirmar que `zsh --version`, `starship --version`, `fzf --version`,
-   `zoxide --version` responden correctamente.
-7. Avisar que hace falta reiniciar la terminal y seleccionar manualmente
-   "JetBrainsMono Nerd Font" en las preferencias del emulador de terminal.
+3. Descargar los 3 dotfiles vía `curl -fsSL` desde `raw.githubusercontent.com`
+   y escribirlos en `$HOME`: si el destino existe y su contenido difiere del
+   descargado → respaldar a `<archivo>.bak.<timestamp>`, luego escribir; si
+   el contenido es idéntico, no tocar nada.
+4. `chsh -s "$(which zsh)"` si el shell de login actual no es ya zsh
+   (con fallback a `sudo chsh` si falla la autenticación PAM — común en
+   cuentas sin contraseña, solo SSH key).
+5. Imprimir resumen final: versiones de cada herramienta instalada, y
+   fallar (`exit 1`) si alguna falta.
+6. Avisar que hace falta cerrar sesión y volver a entrar (no alcanza con
+   reiniciar la terminal), y seleccionar manualmente "JetBrainsMono Nerd
+   Font" en las preferencias del emulador de terminal.
 
 ## Manejo de errores
 
@@ -132,8 +143,9 @@ Ejecutado con `set -euo pipefail`, idempotente en cada paso:
 - Cada instalación de paquete se verifica post-instalación
   (`command -v <tool>`); si falla, el script aborta con un mensaje claro
   indicando qué paso falló.
-- Los symlinks nunca se crean sin antes verificar si hay que respaldar algo
-  existente — no se pierde configuración previa sin backup.
+- Los dotfiles nunca se sobreescriben sin antes verificar si hay que
+  respaldar contenido existente — no se pierde configuración previa sin
+  backup.
 
 ## Fuera de alcance (por ahora)
 

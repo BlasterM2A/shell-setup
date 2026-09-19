@@ -1,5 +1,6 @@
-# ~/.zshrc — managed by shell-setup, do not edit ~/.zshrc directly.
-# Edit files in ~/shell-setup instead, then `git push` to share the change.
+# ~/.zshrc — managed by shell-setup. Edit the source at
+# https://github.com/BlasterM2A/shell-setup, then re-run the installer to
+# apply changes: curl -fsSL https://raw.githubusercontent.com/BlasterM2A/shell-setup/master/install.sh | bash
 
 # --- PATH ---
 export PATH="$HOME/.local/bin:$PATH"
@@ -18,7 +19,7 @@ setopt HIST_IGNORE_DUPS
 ANTIDOTE_DIR="$HOME/.antidote"
 if [ -f "$ANTIDOTE_DIR/antidote.zsh" ]; then
     source "$ANTIDOTE_DIR/antidote.zsh"
-    antidote load "$HOME/shell-setup/zsh/plugins.txt"
+    antidote load "$HOME/.config/shell-setup/plugins.txt"
 fi
 
 # --- prompt ---
