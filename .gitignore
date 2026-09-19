@@ -14,3 +14,8 @@ Thumbs.db
 # Local backups created by symlink_dotfile (never expected inside the repo,
 # but ignored defensively in case install.sh is ever run from here)
 *.bak.*
+
+# antidote's static plugin bundle cache, auto-generated next to
+# zsh/plugins.txt on first `antidote load` — machine-specific absolute
+# paths into ~/.cache/antidote, must not be committed
+zsh/plugins.zsh
