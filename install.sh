@@ -113,7 +113,7 @@ install_mise() {
 }
 
 install_nerd_font() {
-    if fc-list 2>/dev/null | grep -qi "JetBrainsMono Nerd Font"; then
+    if fc-list 2>/dev/null | grep -i "JetBrainsMono Nerd Font" >/dev/null; then
         log_info "JetBrainsMono Nerd Font already installed, skipping"
         return 0
     fi

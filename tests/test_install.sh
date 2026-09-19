@@ -132,6 +132,36 @@ else
     echo "PASS: install_antidote skips cloning when antidote dir already exists"
 fi
 
+# --- install_nerd_font idempotency (regression: grep -q + pipefail SIGPIPE) ---
+#
+# `fc-list | grep -qi ...` can make fc-list exit via SIGPIPE once grep -q
+# finds its match and stops reading, and under `set -o pipefail` that
+# non-zero exit fails the whole pipeline even though grep matched — so the
+# idempotency check always looked "not installed". This test uses a large
+# fake fc-list output so the same SIGPIPE condition reproduces reliably.
+
+cat > "$FAKE_BIN/fc-list" <<'EOS'
+#!/usr/bin/env bash
+for i in $(seq 1 5000); do
+    echo "/fake/font-$i.ttf: Fake Font $i:style=Regular"
+done
+echo "/fake/JetBrainsMonoNerdFont-Regular.ttf: JetBrainsMono Nerd Font:style=Regular"
+EOS
+chmod +x "$FAKE_BIN/fc-list"
+NERD_FONT_CURL_CALLED_FILE="$TMPDIR/nerd-font-curl-called"
+cat > "$FAKE_BIN/curl" <<EOS
+#!/usr/bin/env bash
+touch "$NERD_FONT_CURL_CALLED_FILE"
+EOS
+chmod +x "$FAKE_BIN/curl"
+(set -o pipefail; PATH="$FAKE_BIN:$PATH" install_nerd_font)
+if [ -f "$NERD_FONT_CURL_CALLED_FILE" ]; then
+    echo "FAIL: install_nerd_font re-downloaded despite fc-list already listing it (pipefail/SIGPIPE regression)"
+    FAILURES=$((FAILURES + 1))
+else
+    echo "PASS: install_nerd_font skips download when fc-list already lists it, even under pipefail"
+fi
+
 # --- install_mise idempotency ---
 
 cat > "$FAKE_BIN/mise" <<'EOS'
