@@ -6,7 +6,7 @@
 
 **Architecture:** A small library of pure bash helper functions (`scripts/lib.sh`, `scripts/packages.sh`) is tested in isolation with lightweight assertion scripts (no test framework, no Docker). `install.sh` orchestrates those helpers: detect OS, install missing packages, symlink dotfiles from the repo into `$HOME` (backing up anything pre-existing), set zsh as the default shell, and print a verification summary.
 
-**Tech Stack:** bash, zsh, starship, antidote, fzf, zoxide, apt, curl.
+**Tech Stack:** bash, zsh, starship, antidote, fzf, zoxide, mise, apt, curl.
 
 **Spec:** `docs/superpowers/specs/2026-09-19-shell-setup-design.md`
 
@@ -20,6 +20,7 @@
 - No migration of existing `.bashrc` content beyond the 3 aliases `ll`, `la`, `l` (spec: Decisiones).
 - Plugin manager is antidote; plugins are `zsh-users/zsh-autosuggestions` and `zsh-users/zsh-syntax-highlighting` (spec: Decisiones, `.zshrc`).
 - Nerd Font install (JetBrainsMono) is automatic; font *selection* in the terminal app stays a manual step the script must print at the end (spec: Nerd Font).
+- mise is installed and activated in `.zshrc` (`eval "$(mise activate zsh)"`); no global tool versions are predefined (spec: Decisiones, mise).
 
 ---
 
@@ -348,10 +349,11 @@ git commit -m "Add zsh, antidote, and starship dotfile content"
 **Files:**
 - Create: `scripts/packages.sh`
 - Test: `tests/test_packages.sh`
+- Modify: `zsh/zshrc:20-25` (add mise activation block, between the zoxide block and the aliases)
 
 **Interfaces:**
 - Consumes: `log_info`, `log_warn`, `is_installed` from `scripts/lib.sh` (Task 1).
-- Produces: `install_all_packages()` (calls every installer below in order); `install_git`, `install_curl`, `install_zsh`, `install_fzf`, `install_starship`, `install_zoxide`, `install_antidote`, `install_nerd_font` (each idempotent, no args); `NERD_FONT_NAME` (string constant, consumed by `print_summary` in Task 4).
+- Produces: `install_all_packages()` (calls every installer below in order); `install_git`, `install_curl`, `install_zsh`, `install_fzf`, `install_starship`, `install_zoxide`, `install_mise`, `install_antidote`, `install_nerd_font` (each idempotent, no args); `NERD_FONT_NAME` (string constant, consumed by `print_summary` in Task 4).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -401,6 +403,28 @@ FAKE_HOME="$TMPDIR/home"
 mkdir -p "$FAKE_HOME/.antidote"
 HOME="$FAKE_HOME" install_antidote
 echo "PASS: install_antidote does not error when antidote dir already exists"
+
+# install_mise skips installation when mise is already present
+PATH_WITH_FAKE_MISE="$TMPDIR/fakebin:$PATH"
+mkdir -p "$TMPDIR/fakebin"
+cat > "$TMPDIR/fakebin/mise" <<'EOS'
+#!/usr/bin/env bash
+echo "fake mise $@"
+EOS
+chmod +x "$TMPDIR/fakebin/mise"
+CURL_CALLED_FILE="$TMPDIR/curl-called"
+cat > "$TMPDIR/fakebin/curl" <<EOS
+#!/usr/bin/env bash
+touch "$CURL_CALLED_FILE"
+EOS
+chmod +x "$TMPDIR/fakebin/curl"
+PATH="$PATH_WITH_FAKE_MISE" install_mise
+if [ -f "$CURL_CALLED_FILE" ]; then
+    echo "FAIL: install_mise invoked curl when mise was already installed"
+    FAILURES=$((FAILURES + 1))
+else
+    echo "PASS: install_mise skips installation when mise is already present"
+fi
 
 if [ "$FAILURES" -eq 0 ]; then
     echo "All tests passed."
@@ -473,6 +497,15 @@ install_antidote() {
     git clone --depth=1 https://github.com/mattmc3/antidote.git "$antidote_dir"
 }
 
+install_mise() {
+    if is_installed mise; then
+        log_info "mise already installed, skipping"
+        return 0
+    fi
+    log_info "Installing mise..."
+    curl https://mise.run | sh
+}
+
 install_nerd_font() {
     if fc-list 2>/dev/null | grep -qi "JetBrainsMono Nerd Font"; then
         log_info "JetBrainsMono Nerd Font already installed, skipping"
@@ -497,6 +530,7 @@ install_all_packages() {
     install_fzf
     install_starship
     install_zoxide
+    install_mise
     install_antidote
     install_nerd_font
 }
@@ -507,11 +541,33 @@ install_all_packages() {
 Run: `bash tests/test_packages.sh`
 Expected: PASS — `All tests passed.` with exit code 0.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Add mise activation to zshrc**
+
+Edit `zsh/zshrc`, inserting a mise block between the zoxide block and the aliases block (so the file reads, in order: antidote, prompt, fzf, zoxide, mise, aliases, PATH):
 
 ```bash
-git add scripts/packages.sh tests/test_packages.sh
-git commit -m "Add idempotent package installers with tests"
+# --- zoxide ---
+if command -v zoxide >/dev/null 2>&1; then
+    eval "$(zoxide init zsh)"
+    alias cd="z"
+fi
+
+# --- mise (runtime version manager) ---
+if command -v mise >/dev/null 2>&1; then
+    eval "$(mise activate zsh)"
+fi
+
+# --- aliases (migrated from ~/.bashrc) ---
+```
+
+Run: `bash -c 'command -v zsh >/dev/null && zsh -n zsh/zshrc && echo "zshrc syntax OK" || echo "zsh not installed on this machine yet, skipping syntax check"'`
+Expected: `zshrc syntax OK` (or the skip message — not a failure).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add scripts/packages.sh tests/test_packages.sh zsh/zshrc
+git commit -m "Add idempotent package installers with tests, wire up mise"
 ```
 
 ---
@@ -631,6 +687,6 @@ git commit -m "Add install.sh orchestrator wiring OS check, packages, dotfiles, 
 
 ## Self-Review Notes
 
-- **Spec coverage:** OS detection (Task 4), package install list incl. zoxide and Nerd Font (Task 3), dotfile symlinking with backup (Task 1 + Task 4), antidote plugin wiring (Task 2's `zshrc` + Task 3's `install_antidote`), `chsh` default shell change (Task 4), idempotency (Task 1 + Task 3 tests), error handling via `set -euo pipefail` (Task 4), final verification summary (Task 4), migrated aliases (Task 2), starship minimal preset (Task 2), Nerd Font manual-selection reminder (Task 3 + Task 4) — all covered. Docker/shellcheck testing and other dotfiles/Claude Code config are explicitly out of scope per the spec and are not tasked here.
+- **Spec coverage:** OS detection (Task 4), package install list incl. zoxide, mise, and Nerd Font (Task 3), dotfile symlinking with backup (Task 1 + Task 4), antidote plugin wiring (Task 2's `zshrc` + Task 3's `install_antidote`), mise install + activation (Task 3), `chsh` default shell change (Task 4), idempotency (Task 1 + Task 3 tests), error handling via `set -euo pipefail` (Task 4), final verification summary (Task 4), migrated aliases (Task 2), starship minimal preset (Task 2), Nerd Font manual-selection reminder (Task 3 + Task 4) — all covered. Docker/shellcheck testing, global mise tool versions, and other dotfiles/Claude Code config are explicitly out of scope per the spec and are not tasked here.
 - **Placeholder scan:** no TBD/TODO, no "add error handling" hand-waving — every step has literal code.
 - **Type/name consistency:** `symlink_dotfile(source, target)` signature matches between Task 1's definition and Task 4's calls; `install_all_packages` and `NERD_FONT_NAME` match between Task 3's definition and Task 4's usage; `APT_CMD` and `CALL_LOG_PATH` env seams match between Task 3's implementation and its test.

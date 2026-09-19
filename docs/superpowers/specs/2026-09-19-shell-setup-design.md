@@ -15,7 +15,7 @@ que el setup arranca minimalista.
 
 - **Shell:** Zsh (POSIX-compatible, ecosistema amplio, estándar de facto).
 - **Stack:** Zsh minimalista (sin Oh My Zsh) + Starship (prompt) +
-  zsh-autosuggestions + zsh-syntax-highlighting + fzf + zoxide.
+  zsh-autosuggestions + zsh-syntax-highlighting + fzf + zoxide + mise.
 - **Plugin manager:** antidote.
 - **Alcance del tool:** dotfiles core (`.zshrc`, `starship.toml`) +
   instalación automática de paquetes. No incluye (por ahora) otros dotfiles
@@ -35,6 +35,10 @@ que el setup arranca minimalista.
   timestamp antes de reemplazarlos.
 - **Testing:** fuera de alcance por ahora. Sin validación en contenedor ni
   shellcheck en esta primera versión.
+- **mise:** se instala y se activa en `.zshrc` (`eval "$(mise activate zsh)"`)
+  para gestionar versiones de runtimes (node, python, etc.) por proyecto. No
+  se predefinen versiones globales — el usuario las configura por
+  proyecto/dispositivo con `mise use` según lo necesite.
 
 ## Arquitectura
 
@@ -84,6 +88,7 @@ ya está presente):
 - `fzf` (apt)
 - `zoxide` (script oficial vía curl, o apt si está disponible)
 - `antidote` (git clone a `~/.antidote`)
+- `mise` (script oficial vía curl, instala en `~/.local/bin`)
 - Nerd Font JetBrainsMono (descarga desde GitHub releases →
   `~/.local/share/fonts` → `fc-cache -f`)
 
@@ -93,6 +98,7 @@ ya está presente):
   `zsh-users/zsh-syntax-highlighting` desde `zsh/plugins.txt`
 - Inicialización de starship (`eval "$(starship init zsh)"`)
 - Inicialización de zoxide (`eval "$(zoxide init zsh)"`, alias `z` para `cd`)
+- Inicialización de mise (`eval "$(mise activate zsh)"`)
 - Inicialización de fzf (keybindings + fuzzy completion)
 - Los 3 aliases migrados: `ll='ls -alF'`, `la='ls -A'`, `l='ls -CF'`
 
