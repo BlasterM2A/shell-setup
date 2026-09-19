@@ -1,0 +1,51 @@
+# Minimal starship preset — directory, git, language, command duration.
+# Requires a Nerd Font for icons to render correctly.
+
+format = """
+$directory\
+$git_branch\
+$git_status\
+$nodejs\
+$python\
+$rust\
+$golang\
+$cmd_duration\
+$line_break\
+$character"""
+
+[directory]
+style = "cyan bold"
+truncation_length = 3
+truncate_to_repo = true
+
+[git_branch]
+symbol = " "
+style = "purple bold"
+
+[git_status]
+style = "red bold"
+
+[nodejs]
+symbol = " "
+style = "green bold"
+
+[python]
+symbol = " "
+style = "yellow bold"
+
+[rust]
+symbol = " "
+style = "red bold"
+
+[golang]
+symbol = " "
+style = "cyan bold"
+
+[cmd_duration]
+min_time = 2000
+format = "took [$duration]($style) "
+style = "yellow bold"
+
+[character]
+success_symbol = "[❯](green bold)"
+error_symbol = "[❯](red bold)"

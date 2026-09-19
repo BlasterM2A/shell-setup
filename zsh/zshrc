@@ -1,0 +1,33 @@
+# ~/.zshrc — managed by shell-setup, do not edit ~/.zshrc directly.
+# Edit files in ~/shell-setup instead, then `git push` to share the change.
+
+# --- antidote plugin manager ---
+ANTIDOTE_DIR="$HOME/.antidote"
+if [ -f "$ANTIDOTE_DIR/antidote.zsh" ]; then
+    source "$ANTIDOTE_DIR/antidote.zsh"
+    antidote load "$HOME/shell-setup/zsh/plugins.txt"
+fi
+
+# --- prompt ---
+if command -v starship >/dev/null 2>&1; then
+    eval "$(starship init zsh)"
+fi
+
+# --- fzf ---
+if command -v fzf >/dev/null 2>&1; then
+    source <(fzf --zsh)
+fi
+
+# --- zoxide ---
+if command -v zoxide >/dev/null 2>&1; then
+    eval "$(zoxide init zsh)"
+    alias cd="z"
+fi
+
+# --- aliases (migrated from ~/.bashrc) ---
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+
+# --- PATH ---
+export PATH="$HOME/.local/bin:$PATH"
