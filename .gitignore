@@ -11,7 +11,7 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Local backups created by symlink_dotfile (never expected inside the repo,
+# Local backups created by fetch_dotfile (never expected inside the repo,
 # but ignored defensively in case install.sh is ever run from here)
 *.bak.*
 
@@ -19,3 +19,7 @@ Thumbs.db
 # zsh/plugins.txt on first `antidote load` — machine-specific absolute
 # paths into ~/.cache/antidote, must not be committed
 zsh/plugins.zsh
+
+# Local Claude Code session/skill settings — personal to this machine,
+# not part of the shell-setup tool itself.
+.claude/
