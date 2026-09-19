@@ -19,8 +19,17 @@ antidote plugins with a hardcoded path
 
 ## Usage on a new machine
 
+One-liner (clones the repo to `~/shell-setup` if it's not there yet, then
+runs `install.sh`):
+
 ```bash
-git clone <repo-url> ~/shell-setup
+curl -fsSL https://raw.githubusercontent.com/BlasterM2A/shell-setup/master/bootstrap.sh | bash
+```
+
+Or manually:
+
+```bash
+git clone https://github.com/BlasterM2A/shell-setup.git ~/shell-setup
 cd ~/shell-setup
 ./install.sh
 ```

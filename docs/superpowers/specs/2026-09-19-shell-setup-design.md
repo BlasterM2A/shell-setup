@@ -20,7 +20,7 @@ que el setup arranca minimalista.
 - **Alcance del tool:** dotfiles core (`.zshrc`, `starship.toml`) +
   instalación automática de paquetes. No incluye (por ahora) otros dotfiles
   (`.gitconfig`, `.tmux.conf`), ni config de Claude Code.
-- **Distribución:** repo git privado en GitHub + script `install.sh` custom
+- **Distribución:** repo público en GitHub (BlasterM2A/shell-setup) + script `install.sh` custom
   (sin Stow ni chezmoi). Symlinks del repo hacia `$HOME`.
 - **Migración de `.bashrc`:** ninguna — se arranca limpio, solo se replican
   los 3 aliases (`ll`, `la`, `l`) en el nuevo `.zshrc`.
@@ -42,7 +42,7 @@ que el setup arranca minimalista.
 
 ## Arquitectura
 
-Repo git privado (`shell-setup`, este directorio) con dotfiles versionados
+Repo público en GitHub (`shell-setup`) con dotfiles versionados
 dentro del repo (no directamente en `$HOME`), más un script `install.sh`
 idempotente que:
 
