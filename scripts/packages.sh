@@ -21,6 +21,8 @@ install_git() { apt_install_if_missing git git; }
 install_curl() { apt_install_if_missing curl curl; }
 install_zsh() { apt_install_if_missing zsh zsh; }
 install_fzf() { apt_install_if_missing fzf fzf; }
+install_unzip() { apt_install_if_missing unzip unzip; }
+install_fontconfig() { apt_install_if_missing fc-cache fontconfig; }
 
 install_starship() {
     if is_installed starship; then
@@ -28,7 +30,7 @@ install_starship() {
         return 0
     fi
     log_info "Installing starship..."
-    curl -sS https://starship.rs/install.sh | sh -s -- --yes --bin-dir "$HOME/.local/bin"
+    curl -fsSL https://starship.rs/install.sh | sh -s -- --yes --bin-dir "$HOME/.local/bin"
 }
 
 install_zoxide() {
@@ -37,7 +39,7 @@ install_zoxide() {
         return 0
     fi
     log_info "Installing zoxide..."
-    curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash
+    curl -fsSL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash
 }
 
 install_antidote() {
@@ -56,7 +58,7 @@ install_mise() {
         return 0
     fi
     log_info "Installing mise..."
-    curl https://mise.run | sh
+    curl -fsSL https://mise.run | sh
 }
 
 install_nerd_font() {
@@ -67,7 +69,7 @@ install_nerd_font() {
     log_info "Installing JetBrainsMono Nerd Font..."
     local tmp_zip
     tmp_zip="$(mktemp)"
-    curl -sSL -o "$tmp_zip" \
+    curl -fsSL -o "$tmp_zip" \
         "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip"
     mkdir -p "$NERD_FONT_DIR"
     unzip -oq "$tmp_zip" -d "$NERD_FONT_DIR"
@@ -85,5 +87,7 @@ install_all_packages() {
     install_zoxide
     install_mise
     install_antidote
+    install_unzip
+    install_fontconfig
     install_nerd_font
 }

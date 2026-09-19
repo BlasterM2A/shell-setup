@@ -39,8 +39,20 @@ fi
 # install_antidote skips cloning when ~/.antidote-equivalent already exists
 FAKE_HOME="$TMPDIR/home"
 mkdir -p "$FAKE_HOME/.antidote"
-HOME="$FAKE_HOME" install_antidote
-echo "PASS: install_antidote does not error when antidote dir already exists"
+mkdir -p "$TMPDIR/fakebin"
+GIT_CALLED_FILE="$TMPDIR/git-called"
+cat > "$TMPDIR/fakebin/git" <<EOS
+#!/usr/bin/env bash
+touch "$GIT_CALLED_FILE"
+EOS
+chmod +x "$TMPDIR/fakebin/git"
+PATH="$TMPDIR/fakebin:$PATH" HOME="$FAKE_HOME" install_antidote
+if [ -f "$GIT_CALLED_FILE" ]; then
+    echo "FAIL: install_antidote invoked git clone when antidote dir already exists"
+    FAILURES=$((FAILURES + 1))
+else
+    echo "PASS: install_antidote skips cloning when antidote dir already exists"
+fi
 
 # install_mise skips installation when mise is already present
 PATH_WITH_FAKE_MISE="$TMPDIR/fakebin:$PATH"

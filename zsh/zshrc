@@ -1,6 +1,19 @@
 # ~/.zshrc — managed by shell-setup, do not edit ~/.zshrc directly.
 # Edit files in ~/shell-setup instead, then `git push` to share the change.
 
+# --- PATH ---
+export PATH="$HOME/.local/bin:$PATH"
+
+# --- completion ---
+autoload -Uz compinit && compinit
+
+# --- history ---
+HISTFILE="$HOME/.zsh_history"
+HISTSIZE=10000
+SAVEHIST=10000
+setopt SHARE_HISTORY
+setopt HIST_IGNORE_DUPS
+
 # --- antidote plugin manager ---
 ANTIDOTE_DIR="$HOME/.antidote"
 if [ -f "$ANTIDOTE_DIR/antidote.zsh" ]; then
@@ -15,7 +28,12 @@ fi
 
 # --- fzf ---
 if command -v fzf >/dev/null 2>&1; then
-    source <(fzf --zsh)
+    if fzf --zsh >/dev/null 2>&1; then
+        source <(fzf --zsh)
+    else
+        [ -f /usr/share/doc/fzf/examples/key-bindings.zsh ] && source /usr/share/doc/fzf/examples/key-bindings.zsh
+        [ -f /usr/share/doc/fzf/examples/completion.zsh ] && source /usr/share/doc/fzf/examples/completion.zsh
+    fi
 fi
 
 # --- zoxide ---
@@ -33,6 +51,3 @@ fi
 alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CF'
-
-# --- PATH ---
-export PATH="$HOME/.local/bin:$PATH"
