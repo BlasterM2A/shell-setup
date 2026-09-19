@@ -11,7 +11,8 @@ REPO_URL="https://github.com/BlasterM2A/shell-setup.git"
 REPO_DIR="$HOME/shell-setup"
 
 if [ -d "$REPO_DIR" ]; then
-    echo "[INFO] $REPO_DIR already exists, skipping clone"
+    echo "[INFO] $REPO_DIR already exists, pulling latest changes..."
+    git -C "$REPO_DIR" pull --ff-only
 else
     echo "[INFO] Cloning shell-setup to $REPO_DIR..."
     git clone "$REPO_URL" "$REPO_DIR"
