@@ -241,6 +241,30 @@ EOS
     fi
 done
 
+# --- install_zsh_user_dir ---
+ZSH_USER_DIR="$TMPDIR/zsh-user"
+install_zsh_user_dir >/dev/null
+install_zsh_user_dir >/dev/null  # idempotent
+for d in env.d functions.d aliases.d custom.d; do
+    if [ -d "$ZSH_USER_DIR/$d" ]; then
+        echo "PASS: install_zsh_user_dir creates $d"
+    else
+        echo "FAIL: install_zsh_user_dir did not create $d"
+        FAILURES=$((FAILURES + 1))
+    fi
+done
+
+# --- zshrc auto-loads the user dirs (real zsh, isolated HOME) ---
+if command -v zsh >/dev/null 2>&1; then
+    ZH="$TMPDIR/zhome"
+    mkdir -p "$ZH/.config/zsh/env.d" "$ZH/.config/zsh/aliases.d" "$ZH/.config/zsh/custom.d"
+    echo 'export SS_TEST_ENV=from_env_d' > "$ZH/.config/zsh/env.d/a.zsh"
+    echo 'alias ss_test_alias="echo ok"' > "$ZH/.config/zsh/aliases.d/a.zsh"
+    echo 'ss_test_fn() { echo ok; }' > "$ZH/.config/zsh/custom.d/a.zsh"
+    OUT="$(HOME="$ZH" zsh -c 'source ./zsh/zshrc 2>/dev/null; echo "$SS_TEST_ENV $(alias ss_test_alias >/dev/null && echo alias) $(whence -w ss_test_fn | cut -d" " -f2)"' 2>&1 | tail -n1)"
+    assert_eq "from_env_d alias function" "$OUT" "zshrc sources env.d, aliases.d and custom.d, and empty dirs are fine"
+fi
+
 if [ "$FAILURES" -eq 0 ]; then
     echo "All tests passed."
     exit 0

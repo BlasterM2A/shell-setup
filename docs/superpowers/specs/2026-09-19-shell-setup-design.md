@@ -59,7 +59,9 @@ symlinks) y, al correr:
 2. Descarga los 3 dotfiles propios directo desde
    `raw.githubusercontent.com` y los escribe en `$HOME` (con backup si el
    contenido cambió respecto al existente).
-3. Cambia el shell por defecto a zsh.
+3. Crea el directorio de usuario de zsh `~/.config/zsh/` (ver "Directorio de
+   usuario de zsh") si no existe.
+4. Cambia el shell por defecto a zsh.
 
 **Flujo en máquina nueva (y de actualización — es el mismo comando):**
 ```
@@ -111,6 +113,28 @@ ya está presente):
 - Inicialización de fzf (keybindings + fuzzy completion)
 - Los 3 aliases migrados: `ll='ls -alF'`, `la='ls -A'`, `l='ls -CF'`
 
+### Directorio de usuario de zsh (`~/.config/zsh/`)
+
+Ruta XDG (`~/.config`), la convención más extendida para configuración de
+zsh. No se usa `ZDOTDIR`: eso exigiría un `~/.zshenv` y mover `.zshrc`;
+`~/.zshrc` sigue en `$HOME`. `install.sh` solo crea los directorios
+(`mkdir -p`, idempotente) y nunca toca su contenido: es del usuario.
+
+```
+~/.config/zsh/
+├── env.d/        # variables de entorno (export ...)
+├── functions.d/  # funciones propias
+├── aliases.d/    # aliases
+└── custom.d/     # cualquier otra cosa (comandos, setopt, keybindings)
+```
+
+`.zshrc` carga automáticamente todos los `*.zsh` de cada directorio, en
+orden alfabético, con `source`. Orden: `env.d` (al inicio, antes de
+completion/plugins, para que las variables estén disponibles para ellos),
+y `functions.d`, `aliases.d`, `custom.d` al final, para poder
+sobrescribir lo definido por el tool. Directorios vacíos o ausentes no dan
+error (glob qualifier `(N)`).
+
 ### `starship.toml`
 
 Preset propio minimalista: directorio actual, rama/estado de git, lenguaje
@@ -127,12 +151,13 @@ Ejecutado con `set -euo pipefail`, idempotente en cada paso:
    y escribirlos en `$HOME`: si el destino existe y su contenido difiere del
    descargado → respaldar a `<archivo>.bak.<timestamp>`, luego escribir; si
    el contenido es idéntico, no tocar nada.
-4. `chsh -s "$(which zsh)"` si el shell de login actual no es ya zsh
+4. Crear `~/.config/zsh/{env,functions,aliases,custom}.d` (`mkdir -p`).
+5. `chsh -s "$(which zsh)"` si el shell de login actual no es ya zsh
    (con fallback a `sudo chsh` si falla la autenticación PAM — común en
    cuentas sin contraseña, solo SSH key).
-5. Imprimir resumen final: versiones de cada herramienta instalada, y
+6. Imprimir resumen final: versiones de cada herramienta instalada, y
    fallar (`exit 1`) si alguna falta.
-6. Avisar que hace falta cerrar sesión y volver a entrar (no alcanza con
+7. Avisar que hace falta cerrar sesión y volver a entrar (no alcanza con
    reiniciar la terminal), y seleccionar manualmente "JetBrainsMono Nerd
    Font" en las preferencias del emulador de terminal.
 

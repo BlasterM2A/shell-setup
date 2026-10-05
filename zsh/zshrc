@@ -5,6 +5,14 @@
 # --- PATH ---
 export PATH="$HOME/.local/bin:$PATH"
 
+# --- user zsh dir (~/.config/zsh): drop *.zsh files in these dirs, auto-sourced ---
+ZSH_USER_DIR="$HOME/.config/zsh"
+_zsh_source_dir() {
+    local f
+    for f in "$ZSH_USER_DIR/$1"/*.zsh(N); do source "$f"; done
+}
+_zsh_source_dir env.d
+
 # --- completion ---
 autoload -Uz compinit && compinit
 
@@ -52,3 +60,9 @@ fi
 alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CF'
+
+# --- user functions / aliases / custom (loaded last so they can override the above) ---
+_zsh_source_dir functions.d
+_zsh_source_dir aliases.d
+_zsh_source_dir custom.d
+unfunction _zsh_source_dir

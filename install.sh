@@ -8,6 +8,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 REPO_RAW_BASE="https://raw.githubusercontent.com/BlasterM2A/shell-setup/master"
 CONFIG_DIR="$HOME/.config/shell-setup"
+ZSH_USER_DIR="$HOME/.config/zsh"
 APT_CMD="${APT_CMD:-sudo apt-get}"
 NERD_FONT_DIR="${NERD_FONT_DIR:-$HOME/.local/share/fonts}"
 NERD_FONT_NAME="JetBrainsMono Nerd Font"
@@ -193,6 +194,14 @@ install_dotfiles() {
     fetch_dotfile "$REPO_RAW_BASE/zsh/plugins.txt" "$CONFIG_DIR/plugins.txt"
 }
 
+install_zsh_user_dir() {
+    local d
+    for d in env.d functions.d aliases.d custom.d; do
+        mkdir -p "$ZSH_USER_DIR/$d"
+    done
+    log_info "Ensured zsh user dir $ZSH_USER_DIR (env.d, functions.d, aliases.d, custom.d)"
+}
+
 set_default_shell() {
     local zsh_path
     zsh_path="$(command -v zsh)"
@@ -237,6 +246,7 @@ main() {
     check_os
     install_all_packages
     install_dotfiles
+    install_zsh_user_dir
     set_default_shell
     print_summary
 }
