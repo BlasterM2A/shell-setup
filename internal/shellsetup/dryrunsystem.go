@@ -20,6 +20,13 @@ func (d *DryRunSystem) ReadFile(p string) ([]byte, error)     { return d.Base.Re
 func (d *DryRunSystem) Stat(p string) (fs.FileInfo, error)    { return d.Base.Stat(p) }
 func (d *DryRunSystem) Glob(pattern string) ([]string, error) { return d.Base.Glob(pattern) }
 func (d *DryRunSystem) LookPath(file string) (string, error)  { return d.Base.LookPath(file) }
+func (d *DryRunSystem) Lstat(p string) (fs.FileInfo, error)   { return d.Base.Lstat(p) }
+func (d *DryRunSystem) Readlink(p string) (string, error)     { return d.Base.Readlink(p) }
+
+func (d *DryRunSystem) Symlink(target, link string) error {
+	d.record("symlink " + link + " -> " + target)
+	return nil
+}
 
 func (d *DryRunSystem) WriteFile(p string, _ []byte, _ fs.FileMode) error {
 	d.record("write " + p)

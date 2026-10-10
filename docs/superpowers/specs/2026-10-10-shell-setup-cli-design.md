@@ -294,6 +294,8 @@ warn / fail / skip:
 - Por herramienta: `check.cmd` (instalada + versión).
 - Por archivo gestionado: ok / modified / missing.
 - Shell por defecto es zsh.
+- Alias `shs`: enlace presente y apuntando a shell-setup; ausente, apuntando
+  a otro sitio o archivo real → warn.
 - Binarios antiguos que tapan a los de mise: `starship`/`zoxide` en
   `~/.local/bin` o `fzf` de apt (herencia del `install.sh` anterior) → warn.
 - Versión del binario vs último release (warn si hay una más nueva).
@@ -406,7 +408,11 @@ responsabilidad:
    release; verifica con `sha256sum`.
 4. Instala en `~/.local/bin/shell-setup` (si ya está en la última versión, no
    re-descarga).
-5. `exec shell-setup init </dev/tty` si `/dev/tty` existe; si no,
+5. Crea el alias corto `~/.local/bin/shs → shell-setup` (enlace relativo).
+   Un archivo real llamado `shs` nunca se reemplaza. `init`/`update` también
+   aseguran el enlace (apuntando al binario en ejecución), por si el binario
+   se instaló sin el bootstrap.
+6. `exec shell-setup init </dev/tty` si `/dev/tty` existe; si no,
    `shell-setup init --plain`.
 
 ```bash

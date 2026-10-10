@@ -62,11 +62,22 @@ install_binary() {
     log "Installed $BIN_DIR/shell-setup"
 }
 
+# Short alias: shs → shell-setup. A real file named shs is never replaced.
+link_alias() {
+    local alias="$BIN_DIR/shs"
+    if [ -e "$alias" ] && [ ! -L "$alias" ]; then
+        log "$alias exists and is not a link; skipping the shs alias"
+        return 0
+    fi
+    ln -sfn shell-setup "$alias"
+}
+
 main() {
     check_os
     local arch
     arch="$(detect_arch)"
     install_binary "$arch"
+    link_alias
     # With `curl | bash`, stdin is the pipe: give init the real terminal.
     if (: </dev/tty) 2>/dev/null; then
         exec "$BIN_DIR/shell-setup" init </dev/tty
