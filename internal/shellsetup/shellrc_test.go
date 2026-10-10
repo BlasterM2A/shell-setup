@@ -115,6 +115,19 @@ func TestApplyRemovesOnlyFragmentsOfRemovedTools(t *testing.T) {
 	assert.Contains(t, reports, FileReport{Path: gone, Result: ResultOK})
 }
 
+func TestApplyRemovesStaleFragmentOfOKTool(t *testing.T) {
+	w := newShellWriter(t)
+	stale := filepath.Join(w.paths.ZshD, "60-starship.zsh") // starship is priority 50 in the catalog
+	_, err := w.files.write(stale, []byte("# old\n"), false)
+	require.NoError(t, err)
+
+	_, err = w.apply(catalogTools(t, w, "starship"), false)
+	require.NoError(t, err)
+
+	assert.NoFileExists(t, stale)
+	assert.FileExists(t, filepath.Join(w.paths.ZshD, "50-starship.zsh"))
+}
+
 func TestShellConfigGolden(t *testing.T) {
 	w := newShellWriter(t)
 	_, err := w.apply(catalogTools(t, w, "mise", "antidote", "starship", "fzf", "zoxide"), false)

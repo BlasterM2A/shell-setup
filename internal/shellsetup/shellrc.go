@@ -41,7 +41,7 @@ func (w shellWriter) apply(okTools []Tool, force bool) ([]FileReport, error) {
 		}
 		reports = append(reports, FileReport{Path: path, Result: res})
 	}
-	orphans, err := w.orphans(desired)
+	orphans, err := w.orphans(desired, okTools)
 	if err != nil {
 		return reports, err
 	}
@@ -93,10 +93,14 @@ func (w shellWriter) desired(okTools []Tool) (map[string][]byte, error) {
 
 // orphans are managed zsh.d fragments of tools no longer in the catalog.
 // Fragments of catalog tools that failed this run are kept as they were.
-func (w shellWriter) orphans(desired map[string][]byte) ([]string, error) {
+func (w shellWriter) orphans(desired map[string][]byte, okTools []Tool) ([]string, error) {
 	existing, err := w.sys.Glob(filepath.Join(w.paths.ZshD, "*.zsh"))
 	if err != nil {
 		return nil, err
+	}
+	ok := map[string]bool{}
+	for _, t := range okTools {
+		ok[t.ID] = true
 	}
 	var out []string
 	for _, path := range existing {
@@ -111,7 +115,9 @@ func (w shellWriter) orphans(desired map[string][]byte) ([]string, error) {
 			continue
 		}
 		_, id, _ := strings.Cut(strings.TrimSuffix(name, ".zsh"), "-")
-		if _, inCatalog := w.catalog.Get(id); inCatalog {
+		// OK tools have exactly the fragments in desired, so any other
+		// managed fragment of theirs is stale.
+		if _, inCatalog := w.catalog.Get(id); inCatalog && !ok[id] {
 			continue
 		}
 		out = append(out, path)
