@@ -23,3 +23,7 @@ zsh/plugins.zsh
 # Local Claude Code session/skill settings — personal to this machine,
 # not part of the shell-setup tool itself.
 .claude/
+
+# Go build output
+bin/
+dist/
