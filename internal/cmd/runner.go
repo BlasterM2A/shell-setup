@@ -69,7 +69,10 @@ func runTUI(ctx context.Context, f *Factory, title string, op operation,
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	opts = append([]tea.ProgramOption{tea.WithInput(f.IOStreams.In), tea.WithOutput(f.IOStreams.Out)}, opts...)
+	// Execute already turns SIGINT/SIGTERM into ctx cancellation.
+	opts = append([]tea.ProgramOption{
+		tea.WithInput(f.IOStreams.In), tea.WithOutput(f.IOStreams.Out), tea.WithoutSignalHandler(),
+	}, opts...)
 	p := tea.NewProgram(model.NewProgress(f.Common(), title, cancel), opts...)
 
 	// sudo/chsh password prompts need the real terminal: suspend the TUI.
@@ -84,6 +87,9 @@ func runTUI(ctx context.Context, f *Factory, title string, op operation,
 
 	done := make(chan progressResult, 1)
 	go func() {
+		// Send blocks until the event loop runs, so the terminal is set up
+		// before op can hand it off (or returns once the program is gone).
+		p.Send(tuiStarted{})
 		events := make(chan shellsetup.Event)
 		forwarded := make(chan struct{})
 		go func() {
@@ -100,7 +106,13 @@ func runTUI(ctx context.Context, f *Factory, title string, op operation,
 		done <- progressResult{Report: rep, OpErr: err}
 	}()
 	if _, err := p.Run(); err != nil {
+		// Let op stop at a step boundary and save its state before exiting.
+		cancel()
+		<-done
 		return progressResult{}, err
 	}
 	return <-done, nil
 }
+
+// tuiStarted is the handshake message; the Progress model ignores it.
+type tuiStarted struct{}
