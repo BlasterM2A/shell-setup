@@ -1,0 +1,16 @@
+id = "mise"
+kind = "builtin"
+post_install = [["mise", "settings", "set", "auto_update", "true"]]
+
+[install]
+backend = "script"
+url = "https://mise.run"
+interpreter = "sh"
+update_cmd = ["mise", "self-update", "--yes"]
+
+[check]
+cmd = ["mise", "--version"]
+
+[shell]
+priority = 10
+snippet = 'eval "$(mise activate zsh)"'

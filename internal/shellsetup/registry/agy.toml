@@ -1,0 +1,10 @@
+id = "agy"
+kind = "plugin"
+optional = true
+
+[install]
+backend = "script"
+url = "https://antigravity.google/cli/install.sh"
+
+[check]
+cmd = ["agy", "--version"]

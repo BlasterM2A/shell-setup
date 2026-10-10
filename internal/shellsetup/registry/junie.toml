@@ -1,0 +1,10 @@
+id = "junie"
+kind = "plugin"
+optional = true
+
+[install]
+backend = "script"
+url = "https://junie.jetbrains.com/install.sh"
+
+[check]
+cmd = ["junie", "--version"]

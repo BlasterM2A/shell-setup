@@ -1,0 +1,9 @@
+id = "zsh"
+kind = "builtin"
+
+[install]
+backend = "apt"
+package = "zsh"
+
+[check]
+cmd = ["zsh", "--version"]

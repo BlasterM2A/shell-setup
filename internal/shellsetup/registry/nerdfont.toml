@@ -1,0 +1,12 @@
+id = "nerdfont"
+kind = "plugin"
+system_packages = ["fontconfig"]
+
+[install]
+backend = "font"
+repo = "ryanoasis/nerd-fonts"
+asset = "JetBrainsMono.zip"
+dest = "~/.local/share/fonts/JetBrainsMonoNerdFont"
+
+[check]
+path = "~/.local/share/fonts/JetBrainsMonoNerdFont/JetBrainsMonoNerdFont-Regular.ttf"
