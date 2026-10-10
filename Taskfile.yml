@@ -1,0 +1,29 @@
+version: "3"
+
+tasks:
+  build:
+    desc: Build ./bin/shell-setup
+    cmds:
+      - go build -o bin/shell-setup .
+  run:
+    desc: "Run the CLI: task run -- doctor"
+    cmds:
+      - go run . {{.CLI_ARGS}}
+  test:
+    desc: Go tests + bootstrap script tests
+    cmds:
+      - go test ./...
+      - bash tests/test_install.sh
+  lint:
+    cmds:
+      - golangci-lint run
+  fmt:
+    cmds:
+      - gofmt -w .
+  tidy:
+    cmds:
+      - go mod tidy
+  snapshot:
+    desc: Local release build into ./dist (no publishing)
+    cmds:
+      - goreleaser release --snapshot --clean

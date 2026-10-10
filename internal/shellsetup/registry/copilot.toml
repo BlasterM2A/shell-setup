@@ -1,0 +1,10 @@
+id = "copilot"
+kind = "plugin"
+optional = true
+
+[install]
+backend = "script"
+url = "https://gh.io/copilot-install"
+
+[check]
+cmd = ["copilot", "--version"]

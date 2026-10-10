@@ -1,8 +1,48 @@
 #!/usr/bin/env bash
+# Tests for the install.sh bootstrap. No network: curl and uname are stubbed
+# and a fake release (tarball + checksums.txt) is served from a temp dir.
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+FAKE_BIN="$TMP/fakebin"
+export FAKE_RELEASE_DIR="$TMP/release"
+mkdir -p "$FAKE_BIN" "$FAKE_RELEASE_DIR" "$TMP/build"
+
+# Fake release: a tarball per arch containing a fake shell-setup binary.
+printf '#!/bin/sh\necho fake-shell-setup "$@"\n' > "$TMP/build/shell-setup"
+chmod +x "$TMP/build/shell-setup"
+for arch in amd64 arm64; do
+    tar -czf "$FAKE_RELEASE_DIR/shell-setup_linux_${arch}.tar.gz" -C "$TMP/build" shell-setup
+done
+(cd "$FAKE_RELEASE_DIR" && sha256sum shell-setup_linux_*.tar.gz > checksums.txt)
+
+# Fake curl: copies $FAKE_RELEASE_DIR/<basename of URL> to the -o target.
+cat > "$FAKE_BIN/curl" <<'EOS'
+#!/usr/bin/env bash
+out="" url="" prev=""
+for arg in "$@"; do
+    if [ "$prev" = "-o" ]; then out="$arg"; elif [[ "$arg" != -* ]]; then url="$arg"; fi
+    prev="$arg"
+done
+cp "$FAKE_RELEASE_DIR/$(basename "$url")" "$out"
+EOS
+cat > "$FAKE_BIN/uname" <<'EOS'
+#!/usr/bin/env bash
+echo "${FAKE_ARCH:-x86_64}"
+EOS
+chmod +x "$FAKE_BIN/curl" "$FAKE_BIN/uname"
+export PATH="$FAKE_BIN:$PATH"
+
+export SHELL_SETUP_BIN_DIR="$TMP/bin"
+export SHELL_SETUP_STATE_DIR="$TMP/state"
+export SHELL_SETUP_RELEASE_BASE="https://example.invalid/download"
+export SHELL_SETUP_OS_RELEASE="$TMP/os-release"
+
 source "$SCRIPT_DIR/../install.sh"
+set +e # install.sh enables -e; assertions must keep running
 
 FAILURES=0
 
@@ -19,256 +59,43 @@ assert_eq() {
 assert_true() {
     local desc="$1"
     shift
-    if "$@"; then
-        echo "PASS: $desc"
-    else
-        echo "FAIL: $desc"
-        FAILURES=$((FAILURES + 1))
-    fi
+    if "$@"; then echo "PASS: $desc"; else echo "FAIL: $desc"; FAILURES=$((FAILURES + 1)); fi
 }
 
 assert_false() {
     local desc="$1"
     shift
-    if "$@"; then
-        echo "FAIL: $desc"
-        FAILURES=$((FAILURES + 1))
-    else
-        echo "PASS: $desc"
-    fi
+    if "$@"; then echo "FAIL: $desc"; FAILURES=$((FAILURES + 1)); else echo "PASS: $desc"; fi
 }
 
-TMPDIR="$(mktemp -d)"
-trap 'rm -rf "$TMPDIR"' EXIT
+# --- detect_arch ---
+assert_eq "amd64" "$(export FAKE_ARCH=x86_64; detect_arch)" "x86_64 maps to amd64"
+assert_eq "arm64" "$(export FAKE_ARCH=aarch64; detect_arch)" "aarch64 maps to arm64"
+assert_false "unsupported arch fails" bash -c "export FAKE_ARCH=mips64; source '$SCRIPT_DIR/../install.sh'; detect_arch" 2>/dev/null
 
-# --- is_installed ---
+# --- check_os ---
+printf 'ID=ubuntu\nID_LIKE=debian\n' > "$SHELL_SETUP_OS_RELEASE"
+assert_true "ubuntu is supported" check_os
+printf 'ID=fedora\n' > "$SHELL_SETUP_OS_RELEASE"
+assert_false "fedora is rejected" bash -c "source '$SCRIPT_DIR/../install.sh'; check_os" 2>/dev/null
+printf 'ID=ubuntu\nID_LIKE=debian\n' > "$SHELL_SETUP_OS_RELEASE"
 
-assert_true "is_installed detects an existing command (bash)" is_installed bash
-assert_false "is_installed reports a missing command" is_installed definitely_not_a_real_command_xyz
+# --- install_binary ---
+assert_true "installs the binary" bash -c "source '$SCRIPT_DIR/../install.sh'; install_binary amd64" >/dev/null
+assert_eq "fake-shell-setup --version" "$("$SHELL_SETUP_BIN_DIR/shell-setup" --version)" "installed binary runs"
 
-# --- fetch_dotfile (stubbed curl, no network) ---
+second="$(bash -c "source '$SCRIPT_DIR/../install.sh'; install_binary amd64")"
+assert_true "re-run skips the download" grep -q "already up to date" <<<"$second"
 
-FAKE_BIN="$TMPDIR/fakebin"
-mkdir -p "$FAKE_BIN"
-DOTFILE_CONTENT_V1="line one"
-DOTFILE_CONTENT_V2="line one changed"
-CURRENT_CONTENT_FILE="$TMPDIR/current-content"
-echo "$DOTFILE_CONTENT_V1" > "$CURRENT_CONTENT_FILE"
-cat > "$FAKE_BIN/curl" <<EOS
-#!/usr/bin/env bash
-# fake curl: -o <target> as last two significant args, ignores the URL,
-# writes back whatever is in \$CURRENT_CONTENT_FILE
-out=""
-prev=""
-for arg in "\$@"; do
-    if [ "\$prev" = "-o" ]; then
-        out="\$arg"
-    fi
-    prev="\$arg"
-done
-cat "$CURRENT_CONTENT_FILE" > "\$out"
-EOS
-chmod +x "$FAKE_BIN/curl"
-PATH="$FAKE_BIN:$PATH"
+# A corrupted checksum must abort and leave no new binary behind.
+rm -f "$SHELL_SETUP_BIN_DIR/shell-setup" "$SHELL_SETUP_STATE_DIR/bootstrap.sha256"
+sed -i "s/^[0-9a-f]*/$(printf '0%.0s' $(seq 64))/" "$FAKE_RELEASE_DIR/checksums.txt"
+assert_false "bad checksum aborts" bash -c "source '$SCRIPT_DIR/../install.sh'; install_binary amd64" 2>/dev/null
+assert_false "no binary after a bad checksum" test -e "$SHELL_SETUP_BIN_DIR/shell-setup"
 
-TARGET="$TMPDIR/fetched-dotfile"
-
-PATH="$FAKE_BIN:$PATH" fetch_dotfile "http://example.invalid/dotfile" "$TARGET"
-assert_eq "$DOTFILE_CONTENT_V1" "$(cat "$TARGET")" "fetch_dotfile writes new content when target doesn't exist"
-
-# idempotency: re-fetching identical content makes no backup
-PATH="$FAKE_BIN:$PATH" fetch_dotfile "http://example.invalid/dotfile" "$TARGET"
-BACKUP_COUNT="$(find "$TMPDIR" -maxdepth 1 -name 'fetched-dotfile.bak.*' | wc -l)"
-assert_eq "0" "$BACKUP_COUNT" "fetch_dotfile is idempotent (no backup when content unchanged)"
-
-# changed content: backs up the old version, writes the new one
-echo "$DOTFILE_CONTENT_V2" > "$CURRENT_CONTENT_FILE"
-PATH="$FAKE_BIN:$PATH" fetch_dotfile "http://example.invalid/dotfile" "$TARGET"
-BACKUP_COUNT_2="$(find "$TMPDIR" -maxdepth 1 -name 'fetched-dotfile.bak.*' | wc -l)"
-assert_eq "1" "$BACKUP_COUNT_2" "fetch_dotfile backs up the old version when content changed"
-assert_eq "$DOTFILE_CONTENT_V2" "$(cat "$TARGET")" "fetch_dotfile writes the updated content"
-
-# --- apt_install_if_missing ---
-
-cat > "$TMPDIR/apt-get" <<'EOS'
-#!/usr/bin/env bash
-echo "$@" >> "$CALL_LOG_PATH"
-EOS
-chmod +x "$TMPDIR/apt-get"
-export CALL_LOG_PATH="$TMPDIR/apt-get-calls.log"
-export APT_CMD="$TMPDIR/apt-get"
-
-apt_install_if_missing bash fake-bash-package
-if [ -f "$CALL_LOG_PATH" ]; then
-    echo "FAIL: apt_install_if_missing called apt-get for an already-installed command"
-    FAILURES=$((FAILURES + 1))
-else
-    echo "PASS: apt_install_if_missing skips an already-installed command"
-fi
-
-apt_install_if_missing definitely_not_a_real_command_xyz fake-missing-package
-if grep -q "install -y fake-missing-package" "$CALL_LOG_PATH" 2>/dev/null; then
-    echo "PASS: apt_install_if_missing installs a missing command via apt-get"
-else
-    echo "FAIL: apt_install_if_missing did not call apt-get install for a missing command"
-    FAILURES=$((FAILURES + 1))
-fi
-
-# --- install_antidote idempotency ---
-
-GIT_CALLED_FILE="$TMPDIR/git-called"
-cat > "$FAKE_BIN/git" <<EOS
-#!/usr/bin/env bash
-touch "$GIT_CALLED_FILE"
-EOS
-chmod +x "$FAKE_BIN/git"
-FAKE_HOME="$TMPDIR/home"
-mkdir -p "$FAKE_HOME/.antidote"
-PATH="$FAKE_BIN:$PATH" HOME="$FAKE_HOME" install_antidote
-if [ -f "$GIT_CALLED_FILE" ]; then
-    echo "FAIL: install_antidote invoked git clone when antidote dir already exists"
-    FAILURES=$((FAILURES + 1))
-else
-    echo "PASS: install_antidote skips cloning when antidote dir already exists"
-fi
-
-# --- install_nerd_font idempotency (regression: grep -q + pipefail SIGPIPE) ---
-#
-# `fc-list | grep -qi ...` can make fc-list exit via SIGPIPE once grep -q
-# finds its match and stops reading, and under `set -o pipefail` that
-# non-zero exit fails the whole pipeline even though grep matched — so the
-# idempotency check always looked "not installed". This test uses a large
-# fake fc-list output so the same SIGPIPE condition reproduces reliably.
-
-cat > "$FAKE_BIN/fc-list" <<'EOS'
-#!/usr/bin/env bash
-for i in $(seq 1 5000); do
-    echo "/fake/font-$i.ttf: Fake Font $i:style=Regular"
-done
-echo "/fake/JetBrainsMonoNerdFont-Regular.ttf: JetBrainsMono Nerd Font:style=Regular"
-EOS
-chmod +x "$FAKE_BIN/fc-list"
-NERD_FONT_CURL_CALLED_FILE="$TMPDIR/nerd-font-curl-called"
-cat > "$FAKE_BIN/curl" <<EOS
-#!/usr/bin/env bash
-touch "$NERD_FONT_CURL_CALLED_FILE"
-EOS
-chmod +x "$FAKE_BIN/curl"
-(set -o pipefail; PATH="$FAKE_BIN:$PATH" install_nerd_font)
-if [ -f "$NERD_FONT_CURL_CALLED_FILE" ]; then
-    echo "FAIL: install_nerd_font re-downloaded despite fc-list already listing it (pipefail/SIGPIPE regression)"
-    FAILURES=$((FAILURES + 1))
-else
-    echo "PASS: install_nerd_font skips download when fc-list already lists it, even under pipefail"
-fi
-
-# --- install_mise idempotency ---
-
-cat > "$FAKE_BIN/mise" <<'EOS'
-#!/usr/bin/env bash
-echo "fake mise $@"
-EOS
-chmod +x "$FAKE_BIN/mise"
-CURL_CALLED_FILE="$TMPDIR/mise-curl-called"
-cat > "$FAKE_BIN/curl" <<EOS
-#!/usr/bin/env bash
-touch "$CURL_CALLED_FILE"
-EOS
-chmod +x "$FAKE_BIN/curl"
-PATH="$FAKE_BIN:$PATH" install_mise
-if [ -f "$CURL_CALLED_FILE" ]; then
-    echo "FAIL: install_mise invoked curl when mise was already installed"
-    FAILURES=$((FAILURES + 1))
-else
-    echo "PASS: install_mise skips installation when mise is already present"
-fi
-
-# --- AI CLI installers: idempotency, install, and failure tolerance ---
-
-AI_MARKER="$TMPDIR/ai-curl-called"
-AI_EMPTY_BIN="$TMPDIR/ai-empty-bin"
-mkdir -p "$AI_EMPTY_BIN"
-# Minimal PATH (fake curl + coreutils dirs only) so real installs on this host don't leak in.
-AI_SAFE_PATH="$AI_EMPTY_BIN:/usr/bin:/bin"
-for tool in "claude claude" "copilot copilot" "junie junie" "antigravity agy"; do
-    fn="install_${tool%% *}"
-    [ "$fn" = "install_copilot" ] && fn="install_copilot_cli"
-    bin="${tool##* }"
-
-    # Already installed -> curl must not run.
-    rm -f "$AI_MARKER"
-    cat > "$AI_EMPTY_BIN/$bin" <<'EOS'
-#!/usr/bin/env bash
-EOS
-    chmod +x "$AI_EMPTY_BIN/$bin"
-    cat > "$AI_EMPTY_BIN/curl" <<EOS
-#!/usr/bin/env bash
-touch "$AI_MARKER"
-EOS
-    chmod +x "$AI_EMPTY_BIN/curl"
-    PATH="$AI_SAFE_PATH" "$fn" >/dev/null
-    if [ -f "$AI_MARKER" ]; then
-        echo "FAIL: $fn invoked curl when $bin was already installed"
-        FAILURES=$((FAILURES + 1))
-    else
-        echo "PASS: $fn skips installation when $bin is already present"
-    fi
-
-    # Missing -> curl runs the installer script piped into bash.
-    rm -f "$AI_MARKER" "$AI_EMPTY_BIN/$bin"
-    cat > "$AI_EMPTY_BIN/curl" <<EOS
-#!/usr/bin/env bash
-echo 'touch "$AI_MARKER"'
-EOS
-    PATH="$AI_SAFE_PATH" "$fn" >/dev/null
-    if [ -f "$AI_MARKER" ]; then
-        echo "PASS: $fn runs the installer when $bin is missing"
-    else
-        echo "FAIL: $fn did not run the installer when $bin was missing"
-        FAILURES=$((FAILURES + 1))
-    fi
-
-    # Failing download must warn, not abort the whole bootstrap.
-    cat > "$AI_EMPTY_BIN/curl" <<'EOS'
-#!/usr/bin/env bash
-exit 22
-EOS
-    if (set -euo pipefail; PATH="$AI_SAFE_PATH" "$fn" >/dev/null 2>&1); then
-        echo "PASS: $fn tolerates a failed download under set -e"
-    else
-        echo "FAIL: $fn aborted on a failed download"
-        FAILURES=$((FAILURES + 1))
-    fi
-done
-
-# --- install_zsh_user_dir ---
-ZSH_USER_DIR="$TMPDIR/zsh-user"
-install_zsh_user_dir >/dev/null
-install_zsh_user_dir >/dev/null  # idempotent
-for d in env.d functions.d aliases.d custom.d; do
-    if [ -d "$ZSH_USER_DIR/$d" ]; then
-        echo "PASS: install_zsh_user_dir creates $d"
-    else
-        echo "FAIL: install_zsh_user_dir did not create $d"
-        FAILURES=$((FAILURES + 1))
-    fi
-done
-
-# --- zshrc auto-loads the user dirs (real zsh, isolated HOME) ---
-if command -v zsh >/dev/null 2>&1; then
-    ZH="$TMPDIR/zhome"
-    mkdir -p "$ZH/.config/zsh/env.d" "$ZH/.config/zsh/aliases.d" "$ZH/.config/zsh/custom.d"
-    echo 'export SS_TEST_ENV=from_env_d' > "$ZH/.config/zsh/env.d/a.zsh"
-    echo 'alias ss_test_alias="echo ok"' > "$ZH/.config/zsh/aliases.d/a.zsh"
-    echo 'ss_test_fn() { echo ok; }' > "$ZH/.config/zsh/custom.d/a.zsh"
-    OUT="$(HOME="$ZH" zsh -c 'source ./zsh/zshrc 2>/dev/null; echo "$SS_TEST_ENV $(alias ss_test_alias >/dev/null && echo alias) $(whence -w ss_test_fn | cut -d" " -f2)"' 2>&1 | tail -n1)"
-    assert_eq "from_env_d alias function" "$OUT" "zshrc sources env.d, aliases.d and custom.d, and empty dirs are fine"
-fi
-
-if [ "$FAILURES" -eq 0 ]; then
-    echo "All tests passed."
-    exit 0
-else
-    echo "$FAILURES test(s) failed."
+echo ""
+if [ "$FAILURES" -gt 0 ]; then
+    echo "$FAILURES test(s) failed"
     exit 1
 fi
+echo "All tests passed"

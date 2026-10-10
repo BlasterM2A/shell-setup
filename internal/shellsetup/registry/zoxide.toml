@@ -1,0 +1,17 @@
+id = "zoxide"
+kind = "plugin"
+depends = ["mise"]
+
+[install]
+backend = "mise"
+package = "zoxide"
+
+[check]
+cmd = ["zoxide", "--version"]
+
+[shell]
+priority = 60
+snippet = '''
+eval "$(zoxide init zsh)"
+alias cd="z"
+'''

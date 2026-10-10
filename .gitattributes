@@ -3,8 +3,10 @@
 
 # Shell scripts must always be LF — a CRLF shebang line breaks execution.
 *.sh text eol=lf
-zshrc text eol=lf
-plugins.txt text eol=lf
+*.zsh text eol=lf
+*.go text eol=lf
+*.txtar text eol=lf
+internal/shellsetup/registry/files/** text eol=lf
 
 # Config files are text too.
 *.toml text eol=lf

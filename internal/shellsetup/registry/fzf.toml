@@ -1,0 +1,14 @@
+id = "fzf"
+kind = "plugin"
+depends = ["mise"]
+
+[install]
+backend = "mise"
+package = "fzf"
+
+[check]
+cmd = ["fzf", "--version"]
+
+[shell]
+priority = 60
+snippet = 'fzf --zsh >/dev/null 2>&1 && source <(fzf --zsh)'

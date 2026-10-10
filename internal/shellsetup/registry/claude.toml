@@ -1,0 +1,11 @@
+id = "claude"
+kind = "plugin"
+optional = true
+
+[install]
+backend = "script"
+url = "https://claude.ai/install.sh"
+update_cmd = ["claude", "update"]
+
+[check]
+cmd = ["claude", "--version"]

@@ -1,0 +1,2 @@
+exec shell-setup --version
+stdout '^shell-setup dev \(none\)$'

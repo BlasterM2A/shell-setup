@@ -1,0 +1,18 @@
+id = "starship"
+kind = "plugin"
+depends = ["mise"]
+
+[install]
+backend = "mise"
+package = "starship"
+
+[check]
+cmd = ["starship", "--version"]
+
+[shell]
+priority = 50
+snippet = 'eval "$(starship init zsh)"'
+
+[[files]]
+src = "files/starship/starship.toml"
+dest = "~/.config/starship.toml"
