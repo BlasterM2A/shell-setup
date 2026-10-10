@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	pathpkg "path"
 	"slices"
 	"strings"
 
@@ -15,7 +16,15 @@ import (
 //go:embed registry
 var registryFS embed.FS
 
-// Catalog is the set of tools, sorted so dependencies come first.
+// A registry holds catalog.toml (the ids of the tools to install) and one
+// module per tool in tools/<id>.toml. Modules left out of catalog.toml stay
+// in the codebase but are not installed.
+const (
+	catalogFile = "catalog.toml"
+	modulesDir  = "tools"
+)
+
+// Catalog is the set of included tools, sorted so dependencies come first.
 type Catalog struct {
 	tools []Tool
 	byID  map[string]Tool
@@ -31,19 +40,26 @@ func DefaultCatalog() (*Catalog, error) {
 	return LoadCatalog(sub)
 }
 
-// LoadCatalog reads every *.toml manifest at the root of fsys. Files
-// referenced by manifests are read from the same fsys.
+// LoadCatalog loads the modules listed in fsys's catalog.toml. Files
+// referenced by modules are read from the same fsys.
 func LoadCatalog(fsys fs.FS) (*Catalog, error) {
-	names, err := fs.Glob(fsys, "*.toml")
+	ids, err := readCatalogFile(fsys)
 	if err != nil {
 		return nil, err
 	}
 	c := &Catalog{byID: map[string]Tool{}, files: fsys}
 	var tools []Tool
-	for _, name := range names {
-		t, err := loadTool(fsys, name)
+	for _, id := range ids {
+		if _, dup := c.byID[id]; dup {
+			return nil, fmt.Errorf("%s: %q is listed twice", catalogFile, id)
+		}
+		path := modulePath(id)
+		if _, err := fs.Stat(fsys, path); err != nil {
+			return nil, fmt.Errorf("%s: %q is listed in %s but %s does not exist", catalogFile, id, catalogFile, path)
+		}
+		t, err := loadTool(fsys, path)
 		if err != nil {
-			return nil, fmt.Errorf("registry/%s: %w", name, err)
+			return nil, fmt.Errorf("registry/%s: %w", path, err)
 		}
 		c.byID[t.ID] = t
 		tools = append(tools, t)
@@ -51,7 +67,7 @@ func LoadCatalog(fsys fs.FS) (*Catalog, error) {
 	for _, t := range tools {
 		for _, dep := range t.Depends {
 			if _, ok := c.byID[dep]; !ok {
-				return nil, fmt.Errorf("registry/%s.toml: unknown dependency %q", t.ID, dep)
+				return nil, fmt.Errorf("registry/%s: depends on %q, which is not in %s", modulePath(t.ID), dep, catalogFile)
 			}
 		}
 	}
@@ -61,8 +77,40 @@ func LoadCatalog(fsys fs.FS) (*Catalog, error) {
 	return c, nil
 }
 
-func loadTool(fsys fs.FS, name string) (Tool, error) {
-	data, err := fs.ReadFile(fsys, name)
+// ValidateModules checks that every module in tools/ is a valid manifest,
+// whether or not catalog.toml includes it, so modules left out don't rot.
+func ValidateModules(fsys fs.FS) error {
+	paths, err := fs.Glob(fsys, modulesDir+"/*.toml")
+	if err != nil {
+		return err
+	}
+	var errs []error
+	for _, path := range paths {
+		if _, err := loadTool(fsys, path); err != nil {
+			errs = append(errs, fmt.Errorf("registry/%s: %w", path, err))
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func readCatalogFile(fsys fs.FS) ([]string, error) {
+	data, err := fs.ReadFile(fsys, catalogFile)
+	if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", catalogFile, err)
+	}
+	var index struct {
+		Tools []string `toml:"tools"`
+	}
+	if err := toml.NewDecoder(bytes.NewReader(data)).DisallowUnknownFields().Decode(&index); err != nil {
+		return nil, fmt.Errorf("reading %s: %w", catalogFile, err)
+	}
+	return index.Tools, nil
+}
+
+func modulePath(id string) string { return modulesDir + "/" + id + ".toml" }
+
+func loadTool(fsys fs.FS, path string) (Tool, error) {
+	data, err := fs.ReadFile(fsys, path)
 	if err != nil {
 		return Tool{}, err
 	}
@@ -74,7 +122,7 @@ func loadTool(fsys fs.FS, name string) (Tool, error) {
 		}
 		return Tool{}, err
 	}
-	if want := strings.TrimSuffix(name, ".toml"); t.ID != want {
+	if want := strings.TrimSuffix(pathpkg.Base(path), ".toml"); t.ID != want {
 		return Tool{}, fmt.Errorf("id %q must match file name %q", t.ID, want)
 	}
 	if t.Kind != KindBuiltin && t.Kind != KindPlugin {

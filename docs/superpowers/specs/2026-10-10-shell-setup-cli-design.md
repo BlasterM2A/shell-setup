@@ -74,7 +74,7 @@ internal/
 │   ├── init.go  update.go  doctor.go  selfupdate.go
 │   └── testdata/scripts/   # e2e txtar (chezmoi)
 ├── shellsetup/             # dominio en un único paquete (chezmoi)
-│   └── registry/           # manifiestos *.toml + files/ embebidos
+│   └── registry/           # catalog.toml + tools/*.toml + files/ (embebidos)
 ├── config/                 # intención del usuario (crush, gh)
 ├── log/                    # slog → archivo + consola (crush)
 ├── selfupdate/             # reemplazo del binario (crush/gh "update")
@@ -133,7 +133,7 @@ Un único paquete organizado por archivos, siguiendo el patrón de
 shellsetup.go          # Engine: Init, Update, Doctor
 event.go               # tipos de evento
 tool.go                # Tool (manifiesto cargado) + Kind, Status
-catalog.go             # carga y valida registry/*.toml (embed)
+catalog.go             # carga catalog.toml y sus módulos (embed)
 backend.go             # interfaz Backend
 aptbackend.go  misebackend.go  scriptbackend.go
 archivebackend.go  fontbackend.go
@@ -143,7 +143,7 @@ check.go               # checks del doctor
 system.go              # interfaz para todo el I/O (fs + ejecutar comandos)
 realsystem.go  dryrunsystem.go
 state.go               # hechos persistidos
-registry/              # *.toml + files/ (embebidos)
+registry/              # catalog.toml, tools/*.toml, files/ (embebidos)
 ```
 
 ### API pública del dominio
@@ -165,8 +165,15 @@ Result}`. `Result` ∈ ok / skipped / modified / warned / failed.
 
 ### Manifiesto de herramienta
 
-Una herramienta = un archivo `registry/<id>.toml`. Añadir una herramienta cuyo
-backend ya existe no requiere código Go.
+Una herramienta = un módulo `registry/tools/<id>.toml`. Qué módulos se
+instalan lo decide **solo** la lista de `registry/catalog.toml`
+(`tools = ["zsh", "mise", …]`): incluir o retirar una herramienta es añadir
+o quitar su id ahí, sin tocar código ni tests. Un módulo fuera del catálogo
+se conserva en el codebase y se sigue validando como manifiesto; no deja
+referencias fuera de su propio archivo (frente a una lista `disabled`, que
+obligaría a mantenerlas). Las `depends` de un módulo incluido deben estar
+incluidas. Añadir una herramienta cuyo backend ya existe no requiere
+código Go.
 
 ```toml
 id          = "starship"
@@ -215,7 +222,6 @@ de argumentos) que se ejecuta tras `Install` y tras `Update`.
 | zoxide | plugin | mise | no | mise | — | 60: `zoxide init zsh` + `alias cd="z"` | — |
 | nerdfont | plugin | font | no | — | fontconfig | — | — |
 | claude | plugin | script | sí | — | — | — | — |
-| copilot | plugin | script | sí | — | — | — | — |
 | junie | plugin | script | sí | — | — | — | — |
 | agy | plugin | script | sí | — | — | — | — |
 
@@ -456,7 +462,7 @@ Sin red, sin instalaciones reales, sin Docker.
 | Qué | Cómo |
 |---|---|
 | Dominio | unit tests con `dryrunsystem` y un `$HOME` en `t.TempDir` |
-| Catálogo | un test recorre `registry/*.toml`: esquema válido, backends existentes, `depends` resolubles, sin ciclos |
+| Catálogo | reglas (inclusión, orden, errores) con un registro de prueba; el registro real se valida dinámicamente: lo que lista `catalog.toml` carga (backends existentes, `depends` incluidas, sin ciclos) y todo `tools/*.toml` es un manifiesto válido. Ningún test nombra ni cuenta herramientas |
 | Orden y fallos | Engine con herramientas fake: orden topológico, skip de dependientes, optional vs requerido, eventos |
 | Archivos gestionados | tabla de la sección "Archivos gestionados": cada fila es un caso |
 | `.zshrc` y fragmentos | golden files |

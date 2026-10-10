@@ -15,8 +15,10 @@ See `README.md` for usage and
   `Engine` (`Init`, `Update`, `Doctor`), tool manifests + catalog, backends
   (`apt`, `mise`, `script`, `archive`, `font`), zsh config composition,
   managed files + state. All I/O goes through the `System` interface.
-- `internal/shellsetup/registry/*.toml` — one manifest per tool, embedded.
-  `registry/files/` holds the config files they ship and the zsh profile.
+- `internal/shellsetup/registry/` (embedded) — `tools/<id>.toml` is one
+  module (manifest) per tool; `catalog.toml` lists the ids that are
+  installed — the only place that decides inclusion. `files/` holds the
+  config files modules ship and the zsh profile.
 - `internal/ui` — components (`steplist`, `statustable`, `notice`, `model`).
   `internal/ui/styles` is the ONLY place that defines colors/icons.
 - `internal/iostreams`, `internal/log`, `internal/config`, `internal/selfupdate`.
@@ -43,4 +45,7 @@ See `README.md` for usage and
 ## Making changes
 
 Design changes: update the spec first, then the code. Adding a tool is a new
-manifest in `registry/` (plus a backend in Go only if none fits).
+module in `registry/tools/` plus its id in `registry/catalog.toml` (and a
+backend in Go only if none fits); removing one is deleting its id from
+`catalog.toml`. Tests never name or count tools: they validate whatever
+`catalog.toml` lists, and that every module in `tools/` parses.
