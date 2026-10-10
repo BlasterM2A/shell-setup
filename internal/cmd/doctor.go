@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -54,6 +55,8 @@ func runDoctor(ctx context.Context, opts *DoctorOptions) error {
 
 func versionCheck(ctx context.Context, u *selfupdate.Updater) shellsetup.CheckResult {
 	c := shellsetup.CheckResult{Name: "shell-setup", Status: shellsetup.CheckOK, Detail: version}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	latest, newer, err := u.Latest(ctx)
 	switch {
 	case errors.Is(err, selfupdate.ErrDevBuild):

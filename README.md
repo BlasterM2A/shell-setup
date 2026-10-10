@@ -28,6 +28,20 @@ After the first `init`:
 1. Log out and back in (the new login shell needs a new session).
 2. Select **JetBrainsMono Nerd Font** in your terminal's font settings.
 
+## Migrating from the old install.sh
+
+Run the one-liner above once. Then:
+
+- Your old `~/.zshrc` is backed up to `~/.zshrc.bak.<timestamp>` and replaced
+  by a one-line stub. Move your personal lines into `~/.config/zsh/*.d`
+  (see [Where things live](#where-things-live)).
+- starship, zoxide and fzf are reinstalled via mise. The old copies
+  (`~/.local/bin/starship`, `~/.local/bin/zoxide`, apt's `fzf`) can be
+  removed; `shell-setup doctor` lists the leftovers it finds.
+- The Nerd Font now lives in `~/.local/share/fonts/JetBrainsMonoNerdFont`;
+  the old `JetBrainsMono*.ttf` files directly in `~/.local/share/fonts` can
+  be deleted.
+
 ## Commands
 
 | Command | What it does |

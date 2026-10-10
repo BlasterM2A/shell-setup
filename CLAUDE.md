@@ -35,8 +35,10 @@ See `README.md` for usage and
   developing (installs packages, chsh). Verify with `task test` and
   `task lint`; manual runs only `doctor`/`--version` with `HOME=$(mktemp -d)`.
 - No Docker- or shellcheck-based testing (explicit scope decision).
-- The GitHub slug `BlasterM2A/shell-setup` is injected by goreleaser ldflags
-  and hardcoded in `install.sh`; update both if the repo moves.
+- The GitHub slug `BlasterM2A/shell-setup` lives in three places: the
+  goreleaser ldflags (`.goreleaser.yml`), `REPO` in `install.sh`, and the
+  `repoSlug` default in `internal/cmd/root.go`; update all three if the repo
+  moves.
 
 ## Making changes
 
