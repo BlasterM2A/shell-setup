@@ -114,6 +114,9 @@ func (e *Engine) apply(ctx context.Context, m mode, force bool, events chan<- Ev
 		}
 	}
 
+	if err := ctx.Err(); err != nil {
+		return rep, err
+	}
 	events <- PhaseStarted{Phase: PhaseShell}
 	w := shellWriter{
 		sys:     e.System,

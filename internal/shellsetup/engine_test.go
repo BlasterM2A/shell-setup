@@ -279,6 +279,29 @@ func TestChshFallsBackToSudo(t *testing.T) {
 	assert.Contains(t, rec.commands(), "sudo chsh -s "+zsh+" tester")
 }
 
+// cancelingBackend cancels the operation while installing a tool.
+type cancelingBackend struct{ cancel context.CancelFunc }
+
+func (b cancelingBackend) Install(context.Context, Env, Tool) error { b.cancel(); return nil }
+func (b cancelingBackend) Update(context.Context, Env, Tool) error  { b.cancel(); return nil }
+
+func TestCancelDuringLastToolSkipsShellPhase(t *testing.T) {
+	e, rec, _ := newTestEngine(t, map[string]string{"a": fakeTool("a", KindBuiltin, "")})
+	rec.out["getent passwd tester"] = "tester:x:1000:1000::/home/tester:/bin/bash"
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	e.Backends["fake"] = cancelingBackend{cancel: cancel}
+
+	_, events, err := runOp(t, func(ch chan<- Event) (Report, error) { return e.Init(ctx, ch) })
+
+	assert.ErrorIs(t, err, context.Canceled)
+	assert.NotContains(t, events, Event(PhaseStarted{Phase: PhaseShell}))
+	assert.NoFileExists(t, e.Paths.Stub)
+	for _, c := range rec.commands() {
+		assert.NotContains(t, c, "chsh")
+	}
+}
+
 // miseTool is a manifest installed by the real mise backend.
 func miseTool(id string) string {
 	return fmt.Sprintf("id = %q\nkind = \"plugin\"\n[install]\nbackend = \"mise\"\npackage = %q\n[check]\ncmd = [%q, \"--version\"]\n",
