@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"sync"
@@ -87,4 +88,11 @@ func (f *fakeFetcher) Fetch(_ context.Context, url string) ([]byte, error) {
 		return nil, fmt.Errorf("GET %s: 404 Not Found", url)
 	}
 	return b, nil
+}
+
+func lookSystemZsh() (string, error) { return exec.LookPath("zsh") }
+
+func runZshSyntaxCheck(zsh, file string) (string, error) {
+	out, err := exec.Command(zsh, "-n", file).CombinedOutput()
+	return string(out), err
 }
