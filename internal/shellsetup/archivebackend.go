@@ -43,6 +43,7 @@ func installArchive(ctx context.Context, env Env, t Tool, skipIfCurrent bool) er
 		return err
 	}
 	if err := extractTarGz(env.System, data, staging); err != nil {
+		_ = env.System.RemoveAll(staging)
 		return fmt.Errorf("extracting %s: %w", t.ID, err)
 	}
 	if err := env.System.RemoveAll(dest); err != nil {

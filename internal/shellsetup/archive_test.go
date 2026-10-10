@@ -104,3 +104,27 @@ func TestFontInstallKeepsOnlyTTFAndRefreshesCache(t *testing.T) {
 	assert.Equal(t, []string{"fc-cache -f " + dest}, rec.commands())
 	assert.Equal(t, "v3.4.0", env.State.Versions["nerdfont"])
 }
+
+func TestFontInstallWithoutTTFKeepsExistingFonts(t *testing.T) {
+	tool := Tool{ID: "nerdfont", Install: InstallSpec{
+		Backend: "font", Repo: "ryanoasis/nerd-fonts", Asset: "JetBrainsMono.zip",
+		Dest: "~/.local/share/fonts/JetBrainsMonoNerdFont",
+	}}
+	f := &fakeFetcher{data: map[string][]byte{
+		"https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest":                  []byte(`{"tag_name":"v3.4.0"}`),
+		"https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/JetBrainsMono.zip": zipFile(t, map[string]string{"README.md": "readme"}),
+	}}
+	env, rec := testEnv(t, f)
+	dest := filepath.Join(env.Paths.Home, ".local", "share", "fonts", "JetBrainsMonoNerdFont")
+	require.NoError(t, os.MkdirAll(dest, 0o755))
+	old := filepath.Join(dest, "Old.ttf")
+	require.NoError(t, os.WriteFile(old, []byte("old"), 0o644))
+
+	err := fontBackend{}.Install(context.Background(), env, tool)
+
+	assert.ErrorContains(t, err, "contains no .ttf")
+	assert.FileExists(t, old)
+	assert.NoDirExists(t, dest+".new")
+	assert.Empty(t, rec.commands())
+	assert.NotContains(t, env.State.Versions, "nerdfont")
+}

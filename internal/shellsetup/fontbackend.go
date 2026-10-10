@@ -39,9 +39,33 @@ func installFont(ctx context.Context, env Env, t Tool, skipIfCurrent bool) error
 		return fmt.Errorf("reading %s: %w", t.Install.Asset, err)
 	}
 	dest := env.Paths.Expand(t.Install.Dest)
+	staging := dest + ".new"
+	if err := env.System.RemoveAll(staging); err != nil {
+		return err
+	}
+	fonts, err := writeFonts(env.System, zr, staging)
+	if err != nil || fonts == 0 {
+		_ = env.System.RemoveAll(staging)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("%s contains no .ttf fonts", t.Install.Asset)
+	}
 	if err := env.System.RemoveAll(dest); err != nil {
 		return err
 	}
+	if err := env.System.Rename(staging, dest); err != nil {
+		return err
+	}
+	if _, err := env.System.Run(ctx, Cmd{Name: "fc-cache", Args: []string{"-f", dest}}); err != nil {
+		return err
+	}
+	env.State.Versions[t.ID] = tag
+	return nil
+}
+
+// writeFonts copies the .ttf entries of zr into dir and returns their count.
+func writeFonts(sys System, zr *zip.Reader, dir string) (int, error) {
 	fonts := 0
 	for _, f := range zr.File {
 		if f.FileInfo().IsDir() || !strings.EqualFold(filepath.Ext(f.Name), ".ttf") {
@@ -49,24 +73,17 @@ func installFont(ctx context.Context, env Env, t Tool, skipIfCurrent bool) error
 		}
 		rc, err := f.Open()
 		if err != nil {
-			return err
+			return fonts, err
 		}
 		content, err := io.ReadAll(rc)
 		_ = rc.Close()
 		if err != nil {
-			return err
+			return fonts, err
 		}
-		if err := env.System.WriteFile(filepath.Join(dest, filepath.Base(f.Name)), content, 0o644); err != nil {
-			return err
+		if err := sys.WriteFile(filepath.Join(dir, filepath.Base(f.Name)), content, 0o644); err != nil {
+			return fonts, err
 		}
 		fonts++
 	}
-	if fonts == 0 {
-		return fmt.Errorf("%s contains no .ttf fonts", t.Install.Asset)
-	}
-	if _, err := env.System.Run(ctx, Cmd{Name: "fc-cache", Args: []string{"-f", dest}}); err != nil {
-		return err
-	}
-	env.State.Versions[t.ID] = tag
-	return nil
+	return fonts, nil
 }
