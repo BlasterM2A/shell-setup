@@ -3,6 +3,7 @@ package cmd
 import (
 	"log/slog"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -88,10 +89,24 @@ func NewFactory(ios *iostreams.IOStreams, home string) *Factory {
 		if os.Geteuid() == 0 {
 			e.Sudo = nil
 		}
+		e.Executable = executablePath()
 		return e, nil
 	})
 	f.Updater = sync.OnceValue(func() *selfupdate.Updater { return selfupdate.New(repoSlug, version) })
 	return f
+}
+
+// executablePath is the real path of the running binary (symlinks such as
+// the shs alias resolved), or "" when it cannot be determined.
+func executablePath() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	if real, err := filepath.EvalSymlinks(exe); err == nil {
+		return real
+	}
+	return exe
 }
 
 // UseTUI reports whether to show the interactive UI.

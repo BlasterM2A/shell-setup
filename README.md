@@ -53,12 +53,17 @@ Run the one-liner above once. Then:
 
 Global flags: `--plain` (no interactive UI), `--verbose`, `--quiet`.
 
+`shs` is a short alias for `shell-setup` (`shs update`, `shs doctor`…): a
+link `~/.local/bin/shs → shell-setup` created by the installer and kept by
+`init`/`update`. A file of your own named `~/.local/bin/shs` is never replaced.
+
 ## Where things live
 
 | Path | Owner |
 |---|---|
 | `~/.config/zsh/{env,functions,aliases,custom}.d/*.zsh` | **You.** Auto-loaded, never touched by shell-setup |
 | `~/.zshrc` | shell-setup (a one-line stub) |
+| `~/.local/bin/shell-setup`, `~/.local/bin/shs` | shell-setup (binary and alias link) |
 | `~/.config/shell-setup/zshrc`, `zsh.d/`, `plugins.txt` | shell-setup (generated) |
 | `~/.config/starship.toml` | shell-setup |
 | `~/.config/shell-setup/config.toml` | You (optional: `log_level`) |

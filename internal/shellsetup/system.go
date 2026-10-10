@@ -40,6 +40,10 @@ type System interface {
 	MkdirAll(path string, perm fs.FileMode) error
 	Stat(path string) (fs.FileInfo, error)
 	Glob(pattern string) ([]string, error)
+	// Lstat is Stat without following symlinks.
+	Lstat(path string) (fs.FileInfo, error)
+	Readlink(path string) (string, error)
+	Symlink(target, link string) error
 	// LookPath searches the same PATH that Run uses.
 	LookPath(file string) (string, error)
 	Run(ctx context.Context, c Cmd) ([]byte, error)

@@ -87,6 +87,19 @@ assert_eq "fake-shell-setup --version" "$("$SHELL_SETUP_BIN_DIR/shell-setup" --v
 second="$(bash -c "source '$SCRIPT_DIR/../install.sh'; install_binary amd64")"
 assert_true "re-run skips the download" grep -q "already up to date" <<<"$second"
 
+# --- link_alias ---
+assert_true "links the alias" bash -c "source '$SCRIPT_DIR/../install.sh'; link_alias" >/dev/null
+assert_eq "shell-setup" "$(readlink "$SHELL_SETUP_BIN_DIR/shs")" "alias is a relative link to shell-setup"
+assert_eq "fake-shell-setup --version" "$("$SHELL_SETUP_BIN_DIR/shs" --version)" "alias runs the binary"
+assert_true "re-linking is idempotent" bash -c "source '$SCRIPT_DIR/../install.sh'; link_alias" >/dev/null
+assert_eq "shell-setup" "$(readlink "$SHELL_SETUP_BIN_DIR/shs")" "alias unchanged after re-link"
+rm -f "$SHELL_SETUP_BIN_DIR/shs"
+printf '#!/bin/sh\necho mine\n' > "$SHELL_SETUP_BIN_DIR/shs"
+chmod +x "$SHELL_SETUP_BIN_DIR/shs"
+bash -c "source '$SCRIPT_DIR/../install.sh'; link_alias" >/dev/null 2>&1
+assert_eq "mine" "$("$SHELL_SETUP_BIN_DIR/shs")" "a real file named shs is left alone"
+rm -f "$SHELL_SETUP_BIN_DIR/shs"
+
 # A corrupted checksum must abort and leave no new binary behind.
 rm -f "$SHELL_SETUP_BIN_DIR/shell-setup" "$SHELL_SETUP_STATE_DIR/bootstrap.sha256"
 sed -i "s/^[0-9a-f]*/$(printf '0%.0s' $(seq 64))/" "$FAKE_RELEASE_DIR/checksums.txt"

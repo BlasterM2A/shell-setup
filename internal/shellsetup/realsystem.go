@@ -48,6 +48,9 @@ func (s *RealSystem) RemoveAll(p string) error                  { return os.Remo
 func (s *RealSystem) MkdirAll(p string, perm fs.FileMode) error { return os.MkdirAll(p, perm) }
 func (s *RealSystem) Stat(p string) (fs.FileInfo, error)        { return os.Stat(p) }
 func (s *RealSystem) Glob(pattern string) ([]string, error)     { return filepath.Glob(pattern) }
+func (s *RealSystem) Lstat(p string) (fs.FileInfo, error)       { return os.Lstat(p) }
+func (s *RealSystem) Readlink(p string) (string, error)         { return os.Readlink(p) }
+func (s *RealSystem) Symlink(target, link string) error         { return os.Symlink(target, link) }
 
 func (s *RealSystem) WriteFile(path string, data []byte, perm fs.FileMode) error {
 	dir := filepath.Dir(path)

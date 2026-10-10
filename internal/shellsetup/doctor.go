@@ -42,7 +42,7 @@ func (e *Engine) Doctor(ctx context.Context) (Report, error) {
 	if filepath.Base(shell) != "zsh" {
 		sc.Status, sc.Detail = CheckWarn, shell+" (run shell-setup init)"
 	}
-	rep.Checks = append(rep.Checks, sc)
+	rep.Checks = append(rep.Checks, sc, e.aliasCheck())
 	for _, p := range e.Paths.Legacy {
 		if _, err := e.System.Stat(p); err == nil {
 			rep.Checks = append(rep.Checks, CheckResult{

@@ -26,6 +26,9 @@ type Engine struct {
 	Sudo      []string
 	OSRelease string
 	Now       func() time.Time
+	// Executable is the running shell-setup binary, the target of the
+	// AliasName link; empty skips the link.
+	Executable string
 }
 
 // NewEngine returns an Engine over the embedded catalog.
@@ -131,6 +134,14 @@ func (e *Engine) apply(ctx context.Context, m mode, force bool, events chan<- Ev
 	rep.Files = files
 	if err != nil {
 		return rep, err
+	}
+	if e.Executable != "" {
+		alias, err := e.ensureAlias()
+		events <- FileFinished(alias)
+		rep.Files = append(rep.Files, alias)
+		if err != nil {
+			return rep, fmt.Errorf("linking %s: %w", AliasName, err)
+		}
 	}
 	if err := e.ensureDefaultShell(ctx); err != nil {
 		return rep, fmt.Errorf("changing the default shell: %w", err)
