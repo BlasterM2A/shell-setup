@@ -11,14 +11,8 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Local backups created by fetch_dotfile (never expected inside the repo,
-# but ignored defensively in case install.sh is ever run from here)
+# Backups shell-setup makes when replacing a file (never expected in the repo)
 *.bak.*
-
-# antidote's static plugin bundle cache, auto-generated next to
-# zsh/plugins.txt on first `antidote load` — machine-specific absolute
-# paths into ~/.cache/antidote, must not be committed
-zsh/plugins.zsh
 
 # Local Claude Code session/skill settings — personal to this machine,
 # not part of the shell-setup tool itself.

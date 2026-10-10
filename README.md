@@ -1,64 +1,70 @@
 # shell-setup
 
-A personal shell bootstrap tool for Ubuntu/Debian. It installs and wires up:
+A CLI/TUI that bootstraps and maintains a zsh environment on Ubuntu/Debian.
+It installs and keeps up to date:
 
-- zsh (default login shell)
-- [starship](https://starship.rs/) prompt
-- [antidote](https://github.com/mattmc3/antidote) zsh plugin manager
-- [fzf](https://github.com/junegunn/fzf) fuzzy finder
-- [zoxide](https://github.com/ajeetdsouza/zoxide) smarter `cd`
-- [mise](https://mise.jdx.dev/) runtime version manager
-- AI CLIs: [Claude Code](https://claude.ai/), [GitHub Copilot CLI](https://github.com/github/copilot-cli), [Junie](https://junie.jetbrains.com/), [Antigravity CLI](https://antigravity.google/product/antigravity-cli/) (`agy`)
+- **Built-in** (always installed; shell-setup needs them): zsh (as the login
+  shell) and [mise](https://mise.jdx.dev/)
+- [starship](https://starship.rs/), [zoxide](https://github.com/ajeetdsouza/zoxide)
+  and [fzf](https://github.com/junegunn/fzf), installed through mise
+- [antidote](https://github.com/mattmc3/antidote) with zsh-autosuggestions and
+  zsh-syntax-highlighting
 - JetBrainsMono Nerd Font
+- AI CLIs (optional, a failure is only a warning): Claude Code, GitHub Copilot
+  CLI, Junie, Antigravity CLI (`agy`)
 
-## Usage on a new machine
-
-One command, no `git clone` required:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/BlasterM2A/shell-setup/master/install.sh | bash
-```
-
-`install.sh` is fully self-contained: it installs every tool above, then
-downloads the three dotfiles it manages (`.zshrc`, `starship.toml`, the
-antidote plugin list) directly from this repo and writes them into place.
-Nothing is cloned or left behind on disk beyond those files and the tools
-themselves.
-
-During the run, expect two password prompts:
-
-- a **sudo** password prompt, for `apt` package installs
-- a **chsh** password prompt, for changing your default login shell to zsh
-
-## After it finishes
-
-1. **Log out and back in.** Restarting your terminal is not enough — changing
-   the login shell only takes effect for a new login session.
-2. Manually select **"JetBrainsMono Nerd Font"** in your terminal emulator's
-   font preferences. `install.sh` installs the font but cannot change your
-   terminal's font setting for you.
-
-## Updating
-
-Edit `zsh/zshrc`, `starship/starship.toml`, or `zsh/plugins.txt` in this
-repo, commit, and push. On each device, updating is the same one-liner as
-installing:
+## Install on a new machine
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/BlasterM2A/shell-setup/master/install.sh | bash
 ```
 
-It re-downloads the latest dotfiles (skipping any that are already
-up to date) and re-runs the idempotent package installers, so it's always
-safe to re-run.
+This downloads the latest release binary to `~/.local/bin/shell-setup`
+(checksum verified) and runs `shell-setup init`. Expect a **sudo** prompt
+(apt packages) and possibly a **chsh** password prompt (login shell).
+
+After the first `init`:
+
+1. Log out and back in (the new login shell needs a new session).
+2. Select **JetBrainsMono Nerd Font** in your terminal's font settings.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `shell-setup init` | Install what is missing, write the shell config, make zsh the login shell |
+| `shell-setup update` | Same as init, plus update every installed tool. `--force` overwrites managed files you edited (a backup is kept) |
+| `shell-setup doctor` | Check tools, managed files and the login shell; exits non-zero if something required is missing |
+| `shell-setup self-update` | Replace the binary with the latest release; then run `shell-setup update` |
+
+Global flags: `--plain` (no interactive UI), `--verbose`, `--quiet`.
+
+## Where things live
+
+| Path | Owner |
+|---|---|
+| `~/.config/zsh/{env,functions,aliases,custom}.d/*.zsh` | **You.** Auto-loaded, never touched by shell-setup |
+| `~/.zshrc` | shell-setup (a one-line stub) |
+| `~/.config/shell-setup/zshrc`, `zsh.d/`, `plugins.txt` | shell-setup (generated) |
+| `~/.config/starship.toml` | shell-setup |
+| `~/.config/shell-setup/config.toml` | You (optional: `log_level`) |
+| `~/.local/state/shell-setup/` | shell-setup (state, log) |
+
+If you edit a file shell-setup manages, `update` leaves it alone and `doctor`
+reports it as modified; `update --force` replaces it after a backup
+(`<file>.bak.<timestamp>`). Put personal config in `~/.config/zsh/*.d` instead.
 
 ## Development
 
-`install.sh` is the single source of truth for install logic — there's no
-separate `scripts/lib.sh`/`scripts/packages.sh` to keep in sync. Tests live
-in `tests/test_install.sh` and source `install.sh` directly (sourcing is
-guarded so it never runs `main`). Run them with:
-
 ```bash
-bash tests/test_install.sh
+mise install          # Go, Task, goreleaser, golangci-lint
+task test             # Go tests + bootstrap script tests
+task lint             # golangci-lint, including dependency rules (depguard)
+task run -- doctor    # run the CLI from source
+task snapshot         # local release build into ./dist
 ```
+
+Add a tool by adding `internal/shellsetup/registry/<id>.toml` (and any config
+file under `registry/files/`). No Go code is needed if its backend exists.
+
+Release: `git tag vX.Y.Z && git push --tags` (GitHub Actions runs goreleaser).

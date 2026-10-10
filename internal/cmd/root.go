@@ -58,7 +58,7 @@ func Execute() int {
 	ios := iostreams.System()
 	home, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Fprintln(ios.ErrOut, "Error:", err)
+		_, _ = fmt.Fprintln(ios.ErrOut, "Error:", err)
 		return 1
 	}
 	f := NewFactory(ios, home)
@@ -69,7 +69,7 @@ func Execute() int {
 		if errors.As(err, &exitErr) {
 			return exitErr.Code
 		}
-		fmt.Fprintln(ios.ErrOut, notice.Render(f.Common(), notice.Props{Status: styles.StatusFail, Text: err.Error()}))
+		_, _ = fmt.Fprintln(ios.ErrOut, notice.Render(f.Common(), notice.Props{Status: styles.StatusFail, Text: err.Error()}))
 		return 1
 	}
 	return 0

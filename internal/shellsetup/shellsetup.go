@@ -123,7 +123,7 @@ func (e *Engine) apply(ctx context.Context, m mode, force bool, events chan<- Ev
 	}
 	files, err := w.apply(okTools, force)
 	for _, f := range files {
-		events <- FileFinished{Path: f.Path, Result: f.Result}
+		events <- FileFinished(f)
 	}
 	rep.Files = files
 	if err != nil {

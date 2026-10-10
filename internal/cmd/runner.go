@@ -37,7 +37,7 @@ func runWithProgress(ctx context.Context, f *Factory, title string, op operation
 func runPlain(ctx context.Context, f *Factory, title string, op operation,
 	summary func(shellsetup.Report, error) string) progressResult {
 	c, out := f.Common(), f.IOStreams.Out
-	fmt.Fprintln(out, c.Styles.Title.Render(title))
+	_, _ = fmt.Fprintln(out, c.Styles.Title.Render(title))
 	events := make(chan shellsetup.Event)
 	done := make(chan progressResult, 1)
 	go func() {
@@ -46,18 +46,18 @@ func runPlain(ctx context.Context, f *Factory, title string, op operation,
 	}()
 	for ev := range events {
 		if p, ok := ev.(shellsetup.PhaseStarted); ok {
-			fmt.Fprintln(out, notice.Render(c, notice.Props{Status: styles.StatusInfo, Text: phaseLabel(p.Phase)}))
+			_, _ = fmt.Fprintln(out, notice.Render(c, notice.Props{Status: styles.StatusInfo, Text: phaseLabel(p.Phase)}))
 			continue
 		}
 		msg, ok := eventMsg(f.Home, ev)
 		if fin, isFinished := msg.(steplist.StepFinished); ok && isFinished {
-			fmt.Fprint(out, statustable.Render(c, statustable.Props{Rows: []statustable.Row{
+			_, _ = fmt.Fprint(out, statustable.Render(c, statustable.Props{Rows: []statustable.Row{
 				{Status: fin.Status, Name: fin.Label, Detail: fin.Detail},
 			}}))
 		}
 	}
 	res := <-done
-	fmt.Fprint(out, summary(res.Report, res.OpErr))
+	_, _ = fmt.Fprint(out, summary(res.Report, res.OpErr))
 	return res
 }
 

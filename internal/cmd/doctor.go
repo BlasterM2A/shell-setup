@@ -43,7 +43,7 @@ func runDoctor(ctx context.Context, opts *DoctorOptions) error {
 		return err
 	}
 	rep.Checks = append(rep.Checks, versionCheck(ctx, f.Updater()))
-	fmt.Fprint(f.IOStreams.Out, statustable.Render(f.Common(), statustable.Props{
+	_, _ = fmt.Fprint(f.IOStreams.Out, statustable.Render(f.Common(), statustable.Props{
 		Title: "shell-setup doctor", Rows: checkRows(f.Home, rep),
 	}))
 	if rep.Failed() {

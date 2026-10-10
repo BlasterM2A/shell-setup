@@ -38,10 +38,10 @@ func runSelfUpdate(ctx context.Context, opts *SelfUpdateOptions) error {
 		return err
 	}
 	if !updated {
-		fmt.Fprintln(out, notice.Render(c, notice.Props{Status: styles.StatusOK, Text: "Already up to date (" + v + ")"}))
+		_, _ = fmt.Fprintln(out, notice.Render(c, notice.Props{Status: styles.StatusOK, Text: "Already up to date (" + v + ")"}))
 		return nil
 	}
-	fmt.Fprintln(out, notice.Render(c, notice.Props{Status: styles.StatusOK, Text: "Updated to " + v}))
-	fmt.Fprintln(out, notice.Render(c, notice.Props{Status: styles.StatusInfo, Text: "Run `shell-setup update` to apply the new configuration."}))
+	_, _ = fmt.Fprintln(out, notice.Render(c, notice.Props{Status: styles.StatusOK, Text: "Updated to " + v}))
+	_, _ = fmt.Fprintln(out, notice.Render(c, notice.Props{Status: styles.StatusInfo, Text: "Run `shell-setup update` to apply the new configuration."}))
 	return nil
 }
