@@ -3,6 +3,7 @@ package shellsetup
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -71,4 +72,19 @@ func writeExecutable(t *testing.T, path string, body ...string) {
 		content += line + "\n"
 	}
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o755))
+}
+
+// fakeFetcher serves canned responses and records requested URLs.
+type fakeFetcher struct {
+	data      map[string][]byte
+	requested []string
+}
+
+func (f *fakeFetcher) Fetch(_ context.Context, url string) ([]byte, error) {
+	f.requested = append(f.requested, url)
+	b, ok := f.data[url]
+	if !ok {
+		return nil, fmt.Errorf("GET %s: 404 Not Found", url)
+	}
+	return b, nil
 }
