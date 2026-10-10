@@ -1,7 +1,7 @@
 # shell-setup — Clip tool para configuración de shell reutilizable
 
 **Fecha:** 2026-09-19
-**Estado:** Aprobado para implementación
+**Estado:** Sustituido en distribución, arquitectura y composición del `.zshrc` por `2026-10-10-shell-setup-cli-design.md`
 
 ## Contexto y objetivo
 
