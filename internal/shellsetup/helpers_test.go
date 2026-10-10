@@ -24,18 +24,24 @@ type recorder struct {
 	cmds []string
 	out  map[string]string
 	fail map[string]error
+	// after runs a hook once the keyed command has been recorded.
+	after map[string]func()
 }
 
 func newRecorder() *recorder {
-	return &recorder{out: map[string]string{}, fail: map[string]error{}}
+	return &recorder{out: map[string]string{}, fail: map[string]error{}, after: map[string]func(){}}
 }
 
 func (r *recorder) exec(_ context.Context, c Cmd) ([]byte, error) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	s := c.String()
 	r.cmds = append(r.cmds, s)
-	return []byte(r.out[s]), r.fail[s]
+	out, err, hook := []byte(r.out[s]), r.fail[s], r.after[s]
+	r.mu.Unlock()
+	if hook != nil {
+		hook()
+	}
+	return out, err
 }
 
 // setFail makes cmd fail with err; a nil err makes it succeed again.

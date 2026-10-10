@@ -69,6 +69,18 @@ func TestDoctorWarnsAboutLoginShellAndLegacyBinaries(t *testing.T) {
 	assert.Equal(t, CheckWarn, checks[e.Paths.Legacy[0]].Status)
 }
 
+func TestDoctorReportsMiseToolOutsideMiseAsNotInstalled(t *testing.T) {
+	e, rec, _ := newTestEngine(t, map[string]string{"a": miseTool("a")})
+	e.Backends["mise"] = miseBackend{}
+	rec.setFail("a --version", nil) // apt-only copy
+	rec.setFail("mise which a", errExit)
+
+	rep, err := e.Doctor(context.Background())
+	require.NoError(t, err)
+
+	assert.Equal(t, CheckResult{Name: "a", Status: CheckFail, Detail: "not installed"}, checksByName(rep)["a"])
+}
+
 func TestDoctorDoesNotWrite(t *testing.T) {
 	e, _, _ := newTestEngine(t, map[string]string{"a": fakeTool("a", KindBuiltin, "")})
 	_, err := e.Doctor(context.Background())

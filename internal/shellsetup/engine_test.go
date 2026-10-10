@@ -279,6 +279,39 @@ func TestChshFallsBackToSudo(t *testing.T) {
 	assert.Contains(t, rec.commands(), "sudo chsh -s "+zsh+" tester")
 }
 
+// miseTool is a manifest installed by the real mise backend.
+func miseTool(id string) string {
+	return fmt.Sprintf("id = %q\nkind = \"plugin\"\n[install]\nbackend = \"mise\"\npackage = %q\n[check]\ncmd = [%q, \"--version\"]\n",
+		id, id, id)
+}
+
+func TestInitInstallsMiseToolFoundOnlyOutsideMise(t *testing.T) {
+	e, rec, _ := newTestEngine(t, map[string]string{"a": miseTool("a")})
+	e.Backends["mise"] = miseBackend{}
+	rec.setFail("a --version", nil) // e.g. an apt or ~/.local/bin copy
+	rec.setFail("mise which a", errExit)
+	rec.after["mise use -g a@latest"] = func() { rec.setFail("mise which a", nil) }
+
+	rep, _, err := runOp(t, initOp(e))
+	require.NoError(t, err)
+
+	assert.Contains(t, rec.commands(), "mise use -g a@latest")
+	assert.Equal(t, map[string]Result{"a": ResultOK}, results(rep))
+}
+
+func TestInitSkipsMiseToolManagedByMise(t *testing.T) {
+	e, rec, _ := newTestEngine(t, map[string]string{"a": miseTool("a")})
+	e.Backends["mise"] = miseBackend{}
+	rec.setFail("a --version", nil)
+
+	rep, _, err := runOp(t, initOp(e))
+	require.NoError(t, err)
+
+	assert.Contains(t, rec.commands(), "mise which a")
+	assert.NotContains(t, rec.commands(), "mise use -g a@latest")
+	assert.Equal(t, map[string]Result{"a": ResultOK}, results(rep))
+}
+
 func TestNewEngineLoadsEmbeddedCatalog(t *testing.T) {
 	sys, _ := newTestSystem(t)
 	e, err := NewEngine(sys, &fakeFetcher{})

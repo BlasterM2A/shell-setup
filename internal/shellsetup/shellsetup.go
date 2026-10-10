@@ -144,7 +144,7 @@ func (e *Engine) applyTool(ctx context.Context, env Env, t Tool, m mode, blocked
 			return tr
 		}
 	}
-	st := e.checkTool(ctx, t, env.State)
+	st := e.checkTool(ctx, env, t)
 	switch {
 	case !st.Installed:
 		tr.Action = ActionInstall
@@ -157,7 +157,7 @@ func (e *Engine) applyTool(ctx context.Context, env Env, t Tool, m mode, blocked
 	events <- ToolStarted{ID: t.ID, Action: tr.Action}
 	err := e.runBackend(ctx, env, t, tr.Action)
 	if err == nil {
-		st = e.checkTool(ctx, t, env.State)
+		st = e.checkTool(ctx, env, t)
 		if !st.Installed {
 			err = fmt.Errorf("not detected after %s", tr.Action)
 		}
@@ -198,7 +198,17 @@ type toolStatus struct {
 	Version   string
 }
 
-func (e *Engine) checkTool(ctx context.Context, t Tool, state *State) toolStatus {
+// checkTool runs the tool's check and, when its backend implements
+// InstallDetector, also requires the backend to recognize the tool.
+func (e *Engine) checkTool(ctx context.Context, env Env, t Tool) toolStatus {
+	st := e.runCheck(ctx, t, env.State)
+	if d, ok := e.Backends[t.Install.Backend].(InstallDetector); ok && st.Installed && !d.Installed(ctx, env, t) {
+		return toolStatus{}
+	}
+	return st
+}
+
+func (e *Engine) runCheck(ctx context.Context, t Tool, state *State) toolStatus {
 	if t.Check.Path != "" {
 		if _, err := e.System.Stat(e.Paths.Expand(t.Check.Path)); err != nil {
 			return toolStatus{}

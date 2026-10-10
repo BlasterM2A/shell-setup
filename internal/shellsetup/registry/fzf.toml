@@ -11,4 +11,4 @@ cmd = ["fzf", "--version"]
 
 [shell]
 priority = 60
-snippet = 'source <(fzf --zsh)'
+snippet = 'fzf --zsh >/dev/null 2>&1 && source <(fzf --zsh)'

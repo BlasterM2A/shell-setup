@@ -39,7 +39,7 @@ antidote load "$HOME/.config/shell-setup/plugins.txt"
 eval "$(starship init zsh)"
 == /.config/shell-setup/zsh.d/60-fzf.zsh ==
 # managed by shell-setup (tool: fzf)
-source <(fzf --zsh)
+fzf --zsh >/dev/null 2>&1 && source <(fzf --zsh)
 == /.config/shell-setup/zsh.d/60-zoxide.zsh ==
 # managed by shell-setup (tool: zoxide)
 eval "$(zoxide init zsh)"

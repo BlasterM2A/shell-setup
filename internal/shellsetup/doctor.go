@@ -14,8 +14,9 @@ func (e *Engine) Doctor(ctx context.Context) (Report, error) {
 		return Report{}, err
 	}
 	var rep Report
+	env := Env{System: e.System, Fetcher: e.Fetcher, Paths: e.Paths, State: state}
 	for _, t := range e.Catalog.Tools() {
-		st := e.checkTool(ctx, t, state)
+		st := e.checkTool(ctx, env, t)
 		c := CheckResult{Name: t.ID, Status: CheckOK, Detail: st.Version}
 		if !st.Installed {
 			c.Status, c.Detail = CheckFail, "not installed"
