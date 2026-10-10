@@ -10,8 +10,8 @@ It installs and keeps up to date:
 - [antidote](https://github.com/mattmc3/antidote) with zsh-autosuggestions and
   zsh-syntax-highlighting
 - JetBrainsMono Nerd Font
-- AI CLIs (optional, a failure is only a warning): Claude Code, GitHub Copilot
-  CLI, Junie, Antigravity CLI (`agy`)
+- AI CLIs (optional, a failure is only a warning): Claude Code, Junie,
+  Antigravity CLI (`agy`)
 
 ## Install on a new machine
 
@@ -83,7 +83,10 @@ task run -- doctor    # run the CLI from source
 task snapshot         # local release build into ./dist
 ```
 
-Add a tool by adding `internal/shellsetup/registry/<id>.toml` (and any config
-file under `registry/files/`). No Go code is needed if its backend exists.
+Tools are modules in `internal/shellsetup/registry/tools/<id>.toml` (config
+files they ship go under `registry/files/`). Which modules are installed is
+decided only by the list in `registry/catalog.toml`: add or remove an id
+there. A module left out stays in the codebase and is still validated by the
+tests. No Go code is needed if its backend exists.
 
 Release: `git tag vX.Y.Z && git push --tags` (GitHub Actions runs goreleaser).
